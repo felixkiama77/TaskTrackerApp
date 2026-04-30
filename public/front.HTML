@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>TypeScript Greeter</title>
+    <meta name="Description" content="The web app for tracking all of your importnat task!"">
+  </head>
+  <body>
+    <h1 style = "text-align:center;">Task Tracker</h1>
+    <section>
+        <h2 style = "text-align: center;">Add Task to List</h2>
+        <form style = "text-align: center;">
+            <label for="task-name">Name of the Task:</label>
+            <input id="task-name" name="title" type="text"><br>
+            <label for="due-date">Due Date:</label>
+            <input id="due-date" name="due" type="date"><br>
+            <button id="create-task" type="submit">Add Task</button>
+        </form>
+        <h3 style ="text-align: center;">Create Task Tag</h3>
+        <div style="display: flex; justify-content: center;">
+            <button id="tag-button" type="button">
+                Open Create A Tag Menu
+            </button>
+        </div>
+        <div id="create-tag" style ="text-align: center;"></div>
+        <h3 style ="text-align: center;"><output id="task-list"></output></h3>
+        <h3 style ="text-align: center;"><output id="tag-list"></output></h3>
+    </section>
+    <script src="../dist/index.js" type="module"></script>
+  </body>
+</html>
