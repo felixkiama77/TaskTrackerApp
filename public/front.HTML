@@ -1,27 +1,45 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>TypeScript Greeter</title>
+     <link rel="stylesheet" href="../css/styles.css">
+    <title id="app-title">TypeScript Greeter</title>
     <meta name="Description" content="The web app for tracking all of your importnat task!"">
   </head>
   <body>
     <h1 style = "text-align:center;">Task Tracker</h1>
     <section>
-        <h2 style = "text-align: center;">Add Task to List</h2>
-        <form style = "text-align: center;">
-            <label for="task-name">Name of the Task:</label>
-            <input id="task-name" name="title" type="text"><br>
-            <label for="due-date">Due Date:</label>
-            <input id="due-date" name="due" type="date"><br>
-            <button id="create-task" type="submit">Add Task</button>
-        </form>
-        <h3 style ="text-align: center;">Create Task Tag</h3>
-        <div style="display: flex; justify-content: center;">
-            <button id="tag-button" type="button">
-                Open Create A Tag Menu
-            </button>
-        </div>
-        <div id="create-tag" style ="text-align: center;"></div>
+        <section class ="input-sections"> 
+            <form class = "input-forms" style = "text-align: center;">
+                <div class="tag-input-divs"> 
+                    <label for="task-name">Name of the Task:</label>
+                    <input id="task-name" name="title" type="text">
+                </div>
+                <div class="tag-input-divs">
+                    <label for="due-date">Due Date:</label>
+                    <input id="due-date" name="due" type="date">
+                </div>
+                <div class="tag-input-divs">
+                    <label for="task-priority">Priority Level</label>
+                    <select id="task-priority" name="priority">
+                        <option value="Low">Low</option>
+                        <option value="Normal">Normal</option>
+                        <option value="High">High</option>
+                    </select>
+                </div>
+                <button id="create-task" type="submit">Add Task</button>
+            </form>
+        </section>
+        <section class ="input-sections">       
+            <h3 style="text-align: center; margin-bottom: 5px;">
+                    Create Task Tag
+            </h3>
+            <div style="display: flex; justify-content: center;">
+                <button id="create-tag-button" type="button">
+                    Open Create A Tag Menu
+                </button>
+            </div>
+            <div id="create-tag" style ="text-align: center;"></div>
+        </section>
         <h3 style ="text-align: center;"><output id="task-list"></output></h3>
         <h3 style ="text-align: center;"><output id="tag-list"></output></h3>
     </section>

@@ -1,20 +1,21 @@
 class Task {
     readonly internalId: number;
     readonly title: string;
-    id: number = 0;
     dueDate: string;
     state: boolean;
     tags: string[] = [];
+    priority: string;
 
-    constructor(id: number, name: string, dueD: string) {
+    constructor(id: number, name: string, dueD: string, level: string) {
         this.internalId = id;
         this.title = name;
         this.dueDate = dueD;
         this.state = false;
+        this.priority = level;
     }
 
     getID(): number {
-        return this.id;
+        return this.internalId;
     }
 
     getName(): string {
@@ -23,6 +24,10 @@ class Task {
 
     getDueDate(): string {
         return this.dueDate;
+    }
+
+    getPriority(): string {
+        return this.priority;
     }
 
     getState(): boolean {
@@ -61,7 +66,7 @@ class Task {
     }
 
     printTask() {
-        let s: string = '\nTask #'+ this.id + '\nTask Name: ' + this.title + '\nDue Date: ' + this.dueDate + '\nComplete: ' + this.state;
+        let s: string = '\nTask #'+ this.internalId + '\nTask Name: ' + this.title + '\nDue Date: ' + this.dueDate + '\nComplete: ' + this.state;
         return s;
     }
 }
@@ -101,16 +106,25 @@ class TaskTag {
 }
 
 class ManageTask {
-    idTracker: number = 1;
+    idTracker: number;
     readonly taskList: Task[] = [];
     tagList: TaskTag[] = [];
 
     constructor() {
         this.retrieveData();
+        this.idTracker = Math.max(0, ...this.taskList.map(t => t.internalId)) + 1;
     }
 
-    addTask(name: string, due: string) {
-        const task = new Task(this.idTracker++, name, due);
+    private getNextAvailableId(): number {
+        let id: number = 1;
+        while (this.taskList.some(task => task.internalId === id)) {
+            id++;
+        }
+        return id;
+    }    
+
+    addTask(name: string, due: string, level: string) {
+        const task = new Task(this.getNextAvailableId(), name, due, level);
         this.taskList.push(task);
     }
 
@@ -201,6 +215,7 @@ class ManageTask {
         const index = this.tagList.findIndex(t => t.tagName === tag.tagName);
         if (index !== -1) {
             this.tagList.splice(index, 1);
+            this.storeData();
         } else {
             console.log("WARNING: Could not find Tag to delete!");
         }
@@ -216,7 +231,7 @@ class ManageTask {
         if (taskData) {
             const parsedData = JSON.parse(taskData);
             const newList: Task[] = parsedData.map((obj: any) => {
-                const task = new Task(obj.id, obj.title, obj.dueDate);
+                const task = new Task(obj.internalId, obj.title, obj.dueDate, obj.priority);
                 task.state = obj.state;
                 task.tags = Array.isArray(obj.tags) ? obj.tags : [];
                 return task;
@@ -248,55 +263,71 @@ class ManageTask {
 const manager = new ManageTask();
 
 
-
 document.addEventListener("DOMContentLoaded", renderTask);
 const taskName = document.getElementById("task-name") as HTMLInputElement;
 const dueDate = document.getElementById("due-date") as HTMLInputElement;
+const taskPriority = document.getElementById("task-priority") as HTMLSelectElement;
 const createButton = document.getElementById("create-task") as HTMLButtonElement;
-console.log("is this working?");
 const printTask = document.getElementById("task-list") as HTMLOutputElement;
-const tagMenuButt = document.getElementById("tag-button") as HTMLButtonElement;
-const printTags = document.getElementById("tag-list") as HTMLOutputElement;
-const tagForm = document.getElementById("create-tag") as HTMLDivElement;
+const outputTags = document.getElementById("tag-list") as HTMLOutputElement;
+const tagFormOutput = document.getElementById("create-tag") as HTMLDivElement;
+const tagMenuButton = document.getElementById("create-tag-button") as HTMLButtonElement;
 
 
 function createAndPrintTask(event: Event): void {
     event.preventDefault();
-    manager.addTask(taskName.value, dueDate.value);
+    manager.addTask(taskName.value, dueDate.value, taskPriority.value);
     printTask.style.whiteSpace = 'pre-line';
     manager.storeData();
     renderTask();
 }
 
+function showAllTasks(): void {
+    for (let t of manager.taskList) {
+        console.log("Taks ID #" + t.internalId + " Task Name: " + t.title + "   ");
+    }
+}
+
 function showTagList(): void {
-    printTags.innerHTML = "";
+    const printTags = document.createElement("section");
+    printTags.classList.add("show-sections");
     printTags.style.whiteSpace = 'pre-line';
     let tagNum: number = 0;
     const tagTitle = document.createElement("h2");
     tagTitle.textContent = "Task Catagories:";
-    printTags.appendChild(tagTitle);
+    tagTitle.id = "tag-section-title";
+    printTags.append(tagTitle);
     for (let tag of manager.tagList) {
-        console.log(tag.tagName);
         tagNum++;
+        const tagObject = document.createElement("section");
+        tagObject.classList.add("tag-display-objects");
         const tagTitle = document.createElement("h3");
-        tagTitle.textContent = "Catagory #" + tagNum + ": " +  tag.tagName;
-        printTags.appendChild(tagTitle);
+        tagTitle.classList.add("tag-object-titles");
+        tagTitle.textContent = "Category #" + tagNum + ": " +  tag.tagName;
+        tagObject.append(tagTitle);
         const deleteTag = document.createElement("button");
-        deleteTag.textContent = "Delete Catagory " + tag.tagName;
+        deleteTag.classList.add("delete-tag-object-buttons");
+        deleteTag.textContent = "Delete Category " + tag.tagName;
         deleteTag.addEventListener("click", () => {
             manager.deleteTag(tag);
-            manager.storeData();
             renderTask();
+            showAllTasks();
         });
-        printTags.appendChild(deleteTag);
+        tagObject.append(deleteTag);
+        const tagTasksList = document.createElement("ul");
+        tagTasksList.classList.add("tags-tasks-section");
         for (let tagT of tag.typeList) {
-            const taskTObj = document.createElement("div");
+            const taskTObj = document.createElement("li");
+            taskTObj.classList.add("task-display-elements");
             taskTObj.textContent = 
-            "Task #" + tagT.id +
+            "Task #" + tagT.internalId +
             " | " + tagT.title +
             " | Categories: " + tagT.showTags() +
             " | Due: " + tagT.dueDate +
+            " | Priority: " + tagT.priority +
             " | Done: " + tagT.state;
+
+            const buttonContain = document.createElement("div");
             const deleteButton = document.createElement("button");
             deleteButton.textContent = "Delete";
             deleteButton.addEventListener("click", () => {
@@ -304,7 +335,7 @@ function showTagList(): void {
                 manager.storeData();
                 renderTask();
             });
-            taskTObj.appendChild(deleteButton);
+            buttonContain.append(deleteButton);
 
             const completeButton = document.createElement("button");
             completeButton.textContent = "Toggle Complete";
@@ -313,62 +344,91 @@ function showTagList(): void {
                 manager.storeData();
                 renderTask();
             });
-            taskTObj.appendChild(completeButton);
-            printTags.appendChild(taskTObj);
+            buttonContain.append(completeButton);
+            buttonContain.classList.add("button-containers")
+            taskTObj.append(buttonContain);
+            tagTasksList.append(taskTObj);
         }
+        tagObject.append(tagTasksList);
+        printTags.append(tagObject);
     }
+    outputTags.append(printTags);
 }
 
 function openTagMenu(event: Event): void {
     event.preventDefault();
-    tagForm.innerHTML = "";
-    const inputTagForm = document.createElement("form");
-    const tagNamePrompt = document.createElement("label");
-    const tagNameInput = document.createElement("input");
-    tagNameInput.name = "category";
-    tagNameInput.id = "input-tag-name";
-    tagNamePrompt.textContent = "Enter Catagory";
-    tagNamePrompt.htmlFor = "input-tag-name";
-    const inputTaskPrompt = document.createElement("label");
-    inputTaskPrompt.textContent = "Enter the number of Task(s) to add to the Category";
-    const tagTask = document.createElement("input");
-    tagTask.name = "Task";
-    tagTask.id = "input-tag-task";
-    inputTaskPrompt.htmlFor = "input-tag-task";
-    const createTagButton = document.createElement("button");
-    createTagButton.type = "button";
-    createTagButton.textContent = "Create Tag";
-    createTagButton.addEventListener("click", () => {
-        let taskIndex: number = Number(tagTask.value);
-        if (taskIndex) {
-            manager.createTag(taskIndex, tagNameInput.value);
-            manager.storeData();
-            renderTask();
-        }
-    });
-    inputTagForm.appendChild(tagNamePrompt);
-    inputTagForm.appendChild(tagNameInput);
-    inputTagForm.appendChild(inputTaskPrompt);
-    inputTagForm.appendChild(tagTask);
-    inputTagForm.appendChild(createTagButton);
-    tagForm.appendChild(inputTagForm);
+    if (tagFormOutput.innerHTML !== "") {
+        tagFormOutput.innerHTML = "";
+        tagMenuButton.innerHTML = "Open Create A Tag Menu";
+        return;
+    } else {
+        tagMenuButton.innerHTML = "Close Create A Tag Menu";
+        tagFormOutput.innerHTML = "";
+        const inputTagSection = document.createElement("section");
+        const inputTagTitle = document.createElement("h2");
+        inputTagTitle.id = "add-tags-title";
+        inputTagSection.append(inputTagTitle);
+        inputTagSection.classList.add("create-tags");
+        const inputTagForm = document.createElement("form");
+        const tagNamePrompt = document.createElement("label");
+        const tagNameInput = document.createElement("input");
+        const containNameInput = document.createElement("div");
+        inputTagForm.classList.add("input-forms");
+        tagNameInput.name = "category";
+        tagNameInput.id = "input-tag-name";
+        tagNamePrompt.textContent = "Enter category";
+        tagNamePrompt.htmlFor = "input-tag-name";
+        containNameInput.append(tagNamePrompt);
+        containNameInput.append(tagNameInput);
+        containNameInput.classList.add("tag-input-divs");
+        const inputTaskPrompt = document.createElement("label");
+        inputTaskPrompt.textContent = "Enter the number of Task(s) to add to the Category";
+        const tagTask = document.createElement("input");
+        tagTask.name = "Task";
+        tagTask.id = "input-tag-task";
+        inputTaskPrompt.htmlFor = "input-tag-task";
+        const containTaskInput = document.createElement("div");
+        containTaskInput.append(inputTaskPrompt);
+        containTaskInput.append(tagTask);
+        containTaskInput.classList.add("tag-input-divs");
+        const createTagButton = document.createElement("button");
+        createTagButton.type = "button";
+        createTagButton.textContent = "Create Tag";
+        createTagButton.addEventListener("click", () => {
+            manager.retrieveData();
+            let taskIndex: number = Number(tagTask.value);
+            if (taskIndex) {
+                manager.createTag(taskIndex, tagNameInput.value);
+                manager.storeData();
+                renderTask();
+            }
+        });
+        inputTagForm.append(containNameInput);
+        inputTagForm.append(containTaskInput);
+        inputTagForm.append(createTagButton);
+        inputTagSection.append(inputTagForm);
+        tagFormOutput.append(inputTagSection);
+    }
 }
 
 function renderTask() {
     printTask.innerHTML = "";
-    let realId: number = 1;
-
+    const taskSection = document.createElement("section");
+    taskSection.classList.add("show-sections");
+    const taskListObject = document .createElement("ul");
+    taskListObject.classList.add("tags-tasks-section");
     for (let task of manager.taskList) {
-        const taskObj = document.createElement("div");
-        task.id = realId++;
+        const taskObj = document.createElement("li");
 
         taskObj.textContent = 
-        "Task #" + task.id +
+        "Task #" + task.internalId +
         " | " + task.title +
         " | Categories: " + task.showTags() +
         " | Due: " + task.dueDate +
+        " | Priority: " + task.priority +
         " | Done: " + task.state;
         
+        const buttonContain = document.createElement("div");
         const deleteButton = document.createElement("button");
         deleteButton.textContent = "Delete";
         deleteButton.addEventListener("click", () => {
@@ -376,7 +436,7 @@ function renderTask() {
             manager.storeData();
             renderTask();
         });
-        taskObj.appendChild(deleteButton);
+        buttonContain.append(deleteButton);
 
         const completeButton = document.createElement("button");
         completeButton.textContent = "Toggle Complete";
@@ -385,14 +445,19 @@ function renderTask() {
             manager.storeData();
             renderTask();
         });
-        taskObj.appendChild(completeButton);
-
-        printTask.appendChild(taskObj);
+        buttonContain.append(completeButton);
+        buttonContain.classList.add("button-containers");
+        taskObj.append(buttonContain);
+        taskObj.classList.add("task-objects");
+        taskListObject.append(taskObj);
     }
+    taskSection.append(taskListObject);
+    printTask.append(taskSection);
+    outputTags.innerHTML = "";
     showTagList();
 }
 createButton.addEventListener("click", createAndPrintTask);
-tagMenuButt.addEventListener("click", openTagMenu);
+tagMenuButton.addEventListener("click", openTagMenu);
 
 
 
