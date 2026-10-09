@@ -24,6 +24,7 @@ test('the page only sees the narrow taskTracker API (FR-26, Electron security)',
     }))
     expect(exposed).toEqual({
       api: [
+        'chooseSound',
         'dispatch',
         'getAppInfo',
         'getSnapshot',
@@ -33,6 +34,7 @@ test('the page only sees the narrow taskTracker API (FR-26, Electron security)',
         'onSnapshot',
         'onWindowVisibility',
         'openDataFolder',
+        'removeSound',
         'reportAudio',
         'testNotification',
       ],

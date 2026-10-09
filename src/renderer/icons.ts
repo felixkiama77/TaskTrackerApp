@@ -18,7 +18,9 @@ export {
   Info,
   ListFilter,
   ListTodo,
+  Music,
   Pencil,
+  Play,
   Plus,
   Repeat,
   Settings,
@@ -28,5 +30,6 @@ export {
   Trash,
   TriangleAlert,
   Undo2,
+  Upload,
   X,
 } from 'lucide'

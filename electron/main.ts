@@ -4,8 +4,10 @@ import {
   dialog,
   Menu,
   nativeImage,
+  net,
   Notification,
   powerMonitor,
+  protocol,
   session,
   shell,
   Tray,
@@ -18,6 +20,7 @@ import type { AppData } from '../src/domain/types'
 import { Channels, type AlertMessage, type NavigateMessage } from '../src/shared/api'
 import { registerIpc, snapshotOf } from './ipc'
 import { createElectronNotifier } from './notifier'
+import { SoundLibrary } from './soundLibrary'
 import { ReminderScheduler, type NotificationRequest, type Notifier } from './scheduler'
 import { Store } from './store'
 
@@ -63,6 +66,12 @@ const iconPath = path.join(
 )
 const devOrigin = VITE_DEV_SERVER_URL ? new URL(VITE_DEV_SERVER_URL).origin : null
 const indexFileUrl = pathToFileURL(path.join(RENDERER_DIST, 'index.html')).href
+
+// Sounds the user added are served to the page as tt-sound://sound/<folder>/<file>, only from the
+// app's sounds folder. Must be registered before the app is ready; "stream" lets audio seek.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'tt-sound', privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true } },
+])
 /** Launched by "Start at login": stay in the tray until the user opens the window. */
 const startHidden = process.argv.includes('--hidden')
 
@@ -220,6 +229,15 @@ async function start() {
   hardenWebContents()
 
   const opened = await Store.open(app.getPath('userData'), now())
+  const sounds = new SoundLibrary(path.join(app.getPath('userData'), 'sounds'))
+  protocol.handle('tt-sound', (request) => {
+    const url = new URL(request.url)
+    const [, folder = '', file = ''] = url.pathname.split('/')
+    const full = url.host === 'sound' ? sounds.resolve(folder, decodeURIComponent(file)) : null
+    if (!full) return new Response('Not found', { status: 404 })
+    // Forward headers such as Range so audio can stream and seek.
+    return net.fetch(pathToFileURL(full).toString(), { headers: request.headers })
+  })
   const openedStore = opened.store
   store = openedStore
   await maintain()
@@ -293,6 +311,19 @@ async function start() {
       notificationsSupported: Notification.isSupported(),
       isPackaged: app.isPackaged,
     }),
+    sounds,
+    pickSoundFiles: async (multiple) => {
+      // Tests supply files instead of the system dialog, which automation can't operate.
+      const testFiles = TEST_MODE ? process.env.TASK_TRACKER_TEST_PICK_FILES : undefined
+      if (testFiles !== undefined) return testFiles.split(path.delimiter).filter(Boolean)
+      const options: Electron.OpenDialogOptions = {
+        title: multiple ? 'Add music tracks' : 'Choose a sound',
+        filters: [{ name: 'Audio files', extensions: ['mp3', 'ogg', 'wav', 'm4a'] }],
+        properties: multiple ? ['openFile', 'multiSelections'] : ['openFile'],
+      }
+      const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+      return result.canceled ? [] : result.filePaths
+    },
     setAudioReport: (report) => {
       customNotificationSounds = new Set(report.customNotificationSounds)
     },

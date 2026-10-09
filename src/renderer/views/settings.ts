@@ -2,10 +2,11 @@ import { localeWeekStart } from '../../domain/dates'
 import type { Settings } from '../../domain/types'
 import type { AppInfo } from '../../shared/api'
 import type { Actions } from '../actions'
-import { EFFECT_CUES, NOTIFICATION_CUES, type NotificationCue } from '../audio/catalog'
+import { EFFECT_LABELS, NOTIFICATION_LABELS, type SoundSlot, type UserSound } from '../../domain/sounds'
+import { EFFECT_CUES, NOTIFICATION_CUES, type Track } from '../audio/catalog'
 import { brandMark } from '../components/parts'
 import { h, icon, mount, type Child } from '../dom'
-import { BellRing, FolderOpen, SkipForward } from '../icons'
+import { BellRing, FolderOpen, Music, Play, SkipForward, Trash, Upload } from '../icons'
 import { state } from '../state'
 import type { ViewContent } from './shell'
 
@@ -97,49 +98,176 @@ function volumeSetting(options: {
   return setting(options.label, null, [input, output], id)
 }
 
-const NOTIFICATION_LABELS: Record<NotificationCue, string> = {
-  reminder: 'reminders',
-  due: 'due-time alarms',
-  overdue: 'overdue alerts',
-  missed: 'missed-reminder summaries',
+/** One event's sound: what plays now, with preview, choose and remove. */
+function soundRow(options: {
+  actions: Actions
+  slot: SoundSlot
+  label: string
+  userFile: UserSound | undefined
+  url: string | undefined
+  fallback: string
+  volume: number
+}): HTMLLIElement {
+  const { actions, slot, label, userFile, url } = options
+  const key = slot.kind === 'music' ? 'music' : `${slot.kind}:${slot.cue}`
+  const status = userFile ? `Your file: ${userFile.originalName}` : url ? 'Built-in sound' : options.fallback
+  return h(
+    'li',
+    { class: 'sound-row' },
+    h(
+      'div',
+      { class: 'sound-row__text' },
+      h('span', { class: 'sound-row__label' }, label),
+      h('span', { class: 'setting__hint' }, status),
+    ),
+    h(
+      'div',
+      { class: 'sound-row__actions' },
+      url &&
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'icon-btn',
+            'aria-label': `Play the “${label}” sound`,
+            title: 'Play',
+            dataset: { focusKey: `sound-play:${key}` },
+            onClick: () => actions.sounds.preview(url, options.volume),
+          },
+          icon(Play, 16),
+        ),
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'btn btn--sm',
+          'aria-label': `Choose a file for “${label}”`,
+          dataset: { focusKey: `sound-choose:${key}` },
+          onClick: (e: Event) => {
+            const button = e.currentTarget as HTMLButtonElement
+            button.disabled = true
+            void actions.chooseSound(slot, label).finally(() => (button.disabled = false))
+          },
+        },
+        icon(Upload, 14),
+        userFile ? 'Replace…' : 'Choose file…',
+      ),
+      userFile &&
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'icon-btn icon-btn--danger',
+            'aria-label': `Remove your “${label}” sound`,
+            title: 'Remove',
+            dataset: { focusKey: `sound-remove:${key}` },
+            onClick: () => void actions.removeSound(slot, label),
+          },
+          icon(Trash, 16),
+        ),
+    ),
+  )
 }
 
-/** Sound effects, custom notification sounds and background music (files in src/assets/audio). */
+function musicTrackRow(actions: Actions, track: Track, playingUrl: string | undefined): HTMLLIElement {
+  return h(
+    'li',
+    { class: 'sound-row' },
+    h(
+      'div',
+      { class: 'sound-row__text' },
+      h('span', { class: 'sound-row__label' }, icon(Music, 14), track.title),
+      h(
+        'span',
+        { class: 'setting__hint' },
+        track.source === 'user' ? 'Added by you' : 'Built-in',
+        playingUrl === track.url ? ' · Playing now' : '',
+      ),
+    ),
+    track.source === 'user' &&
+      h(
+        'div',
+        { class: 'sound-row__actions' },
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'icon-btn icon-btn--danger',
+            'aria-label': `Remove the track “${track.title}”`,
+            title: 'Remove',
+            dataset: { focusKey: `track-remove:${track.id}` },
+            onClick: () => void actions.removeSound({ kind: 'music' }, track.title, track.id),
+          },
+          icon(Trash, 16),
+        ),
+      ),
+  )
+}
+
+/**
+ * Settings › Sound: a sound for each notification and action, and background music tracks. Files are
+ * chosen with the system file picker and copied into the app's data folder; built-in sounds from
+ * src/assets/audio are used wherever the user hasn't chosen one.
+ */
 function soundSection(actions: Actions): HTMLElement {
   const settings = state.data.settings
+  const userSounds = state.data.sounds
   const { sounds } = actions
   const { catalog } = sounds
   const effectCount = EFFECT_CUES.filter((cue) => catalog.effects[cue]).length
   const customNotifications = NOTIFICATION_CUES.filter((cue) => catalog.notifications[cue])
-  const tracks = catalog.music.length
+  const tracks = catalog.music
   const playing = sounds.nowPlaying()
+  const trackCount = tracks.length === 1 ? '1 track' : `${tracks.length} tracks`
+
+  const addTracks = h(
+    'button',
+    {
+      type: 'button',
+      class: 'btn btn--sm',
+      dataset: { focusKey: 'add-tracks' },
+      onClick: () => {
+        addTracks.disabled = true
+        void actions.chooseSound({ kind: 'music' }, 'Music').finally(() => (addTracks.disabled = false))
+      },
+    },
+    icon(Upload, 14),
+    'Add tracks…',
+  )
 
   return h(
     'section',
     { class: 'settings-section', 'aria-labelledby': 'settings-sound' },
     h('h2', { id: 'settings-sound' }, 'Sound'),
-    switchRow({
-      label: 'Sound effects',
-      hint:
-        effectCount === 0
-          ? 'No sound effects have been added yet.'
-          : `Short sounds when you create, complete, undo, skip or delete tasks (${effectCount} of ${EFFECT_CUES.length} added).`,
-      checked: settings.soundEffects && effectCount > 0,
-      disabled: effectCount === 0,
-      focusKey: 'sound-effects',
-      onChange: (checked) => save(actions, { soundEffects: checked }),
-    }),
-    volumeSetting({
-      label: 'Effects volume',
-      value: settings.effectsVolume,
-      disabled: effectCount === 0 || !settings.soundEffects,
-      focusKey: 'effects-volume',
-      onCommit: (volume) => {
-        save(actions, { effectsVolume: volume })
-        // A quick preview at the new level.
-        window.setTimeout(() => sounds.playEffect('task-completed'), 50)
-      },
-    }),
+    h(
+      'p',
+      { class: 'setting__hint' },
+      'Choose an MP3 (or OGG, WAV, M4A) for any event. Files are copied into Task Tracker, so the originals can be moved or deleted afterwards.',
+    ),
+
+    h('h3', { class: 'settings-subheading', id: 'sound-notifications' }, 'Notification sounds'),
+    h(
+      'p',
+      { class: 'setting__hint' },
+      customNotifications.length === 0
+        ? 'Notifications currently use the Windows sound.'
+        : 'A sound chosen here replaces the Windows sound for that kind of notification.',
+    ),
+    h(
+      'ul',
+      { class: 'sound-list', 'aria-labelledby': 'sound-notifications' },
+      NOTIFICATION_CUES.map((cue) =>
+        soundRow({
+          actions,
+          slot: { kind: 'notification', cue },
+          label: NOTIFICATION_LABELS[cue],
+          userFile: userSounds.notifications[cue],
+          url: catalog.notifications[cue],
+          fallback: 'Windows sound',
+          volume: settings.notificationVolume,
+        }),
+      ),
+    ),
     volumeSetting({
       label: 'Notification sound volume',
       value: settings.notificationVolume,
@@ -147,45 +275,73 @@ function soundSection(actions: Actions): HTMLElement {
       focusKey: 'notification-volume',
       onCommit: (volume) => {
         save(actions, { notificationVolume: volume })
-        window.setTimeout(() => sounds.playNotification(customNotifications[0] ?? 'reminder'), 50)
+        const sample = customNotifications[0]
+        if (sample) window.setTimeout(() => sounds.playNotification(sample), 50)
       },
     }),
-    h(
-      'p',
-      { class: 'setting__hint' },
-      customNotifications.length === 0
-        ? 'No custom notification sounds have been added yet, so notifications use the Windows sound.'
-        : `Custom sounds play for ${customNotifications.map((c) => NOTIFICATION_LABELS[c]).join(', ')}${
-            customNotifications.length < NOTIFICATION_CUES.length
-              ? '; other notifications use the Windows sound'
-              : ''
-          }.`,
-    ),
+
+    h('h3', { class: 'settings-subheading', id: 'sound-effects' }, 'Action sounds'),
     switchRow({
-      label: 'Background music',
+      label: 'Play action sounds',
       hint:
-        tracks === 0
-          ? 'No music has been added yet.'
-          : `${tracks === 1 ? '1 track' : `${tracks} tracks`} in rotation. Pauses while the window is hidden.`,
-      checked: settings.music && tracks > 0,
-      disabled: tracks === 0,
+        effectCount === 0
+          ? 'Choose sounds below; nothing plays until you do.'
+          : `${effectCount} of ${EFFECT_CUES.length} actions have a sound.`,
+      checked: settings.soundEffects,
+      focusKey: 'sound-effects',
+      onChange: (checked) => save(actions, { soundEffects: checked }),
+    }),
+    h(
+      'ul',
+      { class: 'sound-list', 'aria-labelledby': 'sound-effects' },
+      EFFECT_CUES.map((cue) =>
+        soundRow({
+          actions,
+          slot: { kind: 'effect', cue },
+          label: EFFECT_LABELS[cue],
+          userFile: userSounds.effects[cue],
+          url: catalog.effects[cue],
+          fallback: 'No sound',
+          volume: settings.effectsVolume,
+        }),
+      ),
+    ),
+    volumeSetting({
+      label: 'Action sound volume',
+      value: settings.effectsVolume,
+      disabled: effectCount === 0 || !settings.soundEffects,
+      focusKey: 'effects-volume',
+      onCommit: (volume) => {
+        save(actions, { effectsVolume: volume })
+        const sample = EFFECT_CUES.find((cue) => catalog.effects[cue])
+        if (sample) window.setTimeout(() => sounds.playEffect(sample), 50)
+      },
+    }),
+
+    h('h3', { class: 'settings-subheading', id: 'sound-music' }, 'Background music'),
+    switchRow({
+      label: 'Play background music',
+      hint:
+        tracks.length === 0
+          ? 'Add tracks below to start a playlist.'
+          : `${trackCount} in rotation. Pauses while the window is hidden.`,
+      checked: settings.music,
       focusKey: 'music',
       onChange: (checked) => save(actions, { music: checked }),
+    }),
+    switchRow({
+      label: 'Shuffle',
+      hint: 'Play the tracks in a random order, never the same one twice in a row.',
+      checked: settings.musicShuffle,
+      focusKey: 'music-shuffle',
+      onChange: (checked) => save(actions, { musicShuffle: checked }),
     }),
     volumeSetting({
       label: 'Music volume',
       value: settings.musicVolume,
-      disabled: tracks === 0 || !settings.music,
+      disabled: tracks.length === 0 || !settings.music,
       focusKey: 'music-volume',
       onCommit: (volume) => save(actions, { musicVolume: volume }),
-    }),
-    switchRow({
-      label: 'Shuffle',
-      hint: 'Play the tracks in a random order instead of by file name.',
-      checked: settings.musicShuffle,
-      disabled: tracks < 2 || !settings.music,
-      focusKey: 'music-shuffle',
-      onChange: (checked) => save(actions, { musicShuffle: checked }),
     }),
     playing &&
       setting(
@@ -203,6 +359,18 @@ function soundSection(actions: Actions): HTMLElement {
           'Next track',
         ),
       ),
+    tracks.length > 0 &&
+      h(
+        'ul',
+        { class: 'sound-list', 'aria-label': 'Music tracks' },
+        tracks.map((track) => musicTrackRow(actions, track, playing?.url)),
+      ),
+    h(
+      'div',
+      { class: 'sound-add' },
+      addTracks,
+      h('span', { class: 'setting__hint' }, 'You can select several files at once (hold Ctrl or Shift).'),
+    ),
   )
 }
 

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { isValidLocalDate, isValidLocalTime } from './dates'
+import { EFFECT_CUES, NOTIFICATION_CUES, STORED_FILE_PATTERN } from './sounds'
 import { DEFAULT_SETTINGS, REMINDER_PRESETS } from './types'
 
 /**
@@ -103,6 +104,25 @@ export const SettingsPatchSchema = z
   })
   .partial()
   .strict()
+
+const UserSoundSchema = z.object({
+  file: z.string().regex(STORED_FILE_PATTERN),
+  originalName: z.string().min(1).max(260),
+  addedAt: IsoTimestampSchema,
+})
+
+export const UserSoundEntrySchema = UserSoundSchema
+export const UserTrackSchema = UserSoundSchema.extend({
+  id: IdSchema,
+  title: z.string().min(1).max(260),
+})
+
+/** Which sound slot a request refers to (from the renderer, so validated in the main process). */
+export const SoundSlotSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('effect'), cue: z.enum(EFFECT_CUES) }),
+  z.object({ kind: z.literal('notification'), cue: z.enum(NOTIFICATION_CUES) }),
+  z.object({ kind: z.literal('music') }),
+])
 
 export const CategorySchema = z.object({
   id: IdSchema,

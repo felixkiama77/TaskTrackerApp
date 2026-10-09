@@ -1,4 +1,5 @@
-import { buildCatalog } from './catalog'
+import type { UserSounds } from '../../domain/sounds'
+import { buildCatalog, withUserSounds, type AudioCatalog } from './catalog'
 import { SoundPlayer, type SoundSettings } from './player'
 
 // Every audio file under src/assets/audio is found at build time; see the README in that folder.
@@ -17,9 +18,27 @@ if (audioCatalog.unrecognized.length > 0) {
   )
 }
 
-export function createSoundPlayer(settings: () => SoundSettings, windowShown: () => boolean): SoundPlayer {
+/** Built-in sounds with the user's own files on top, recomputed only when the user's sounds change. */
+function userCatalog(userSounds: () => UserSounds): () => AudioCatalog {
+  let lastSounds: UserSounds | null = null
+  let merged = audioCatalog
+  return () => {
+    const sounds = userSounds()
+    if (sounds !== lastSounds) {
+      lastSounds = sounds
+      merged = withUserSounds(audioCatalog, sounds)
+    }
+    return merged
+  }
+}
+
+export function createSoundPlayer(
+  settings: () => SoundSettings,
+  userSounds: () => UserSounds,
+  windowShown: () => boolean,
+): SoundPlayer {
   return new SoundPlayer({
-    catalog: audioCatalog,
+    catalog: userCatalog(userSounds),
     settings,
     isVisible: () => windowShown() && document.visibilityState === 'visible',
   })

@@ -139,6 +139,7 @@ export async function startApp(root: HTMLElement, api: TaskTrackerApi) {
   let windowShown = true
   const sounds = createSoundPlayer(
     () => state.data.settings,
+    () => state.data.sounds,
     () => windowShown,
   )
   const actions = new Actions(api, new Toaster(toastRegion), sounds)
@@ -212,12 +213,19 @@ export async function startApp(root: HTMLElement, api: TaskTrackerApi) {
     if (state.ui.route.name === 'settings') state.refresh()
   })
   sounds.syncMusic()
-  // Tell the main process which notification kinds have custom sounds, so their system sound is muted.
-  void api
-    .reportAudio({
-      customNotificationSounds: NOTIFICATION_CUES.filter((cue) => sounds.hasNotificationSound(cue)),
-    })
-    .catch((error: unknown) => console.warn('[audio] Could not report sounds', error))
+  // Tell the main process which notification kinds have custom sounds (so their system sound is
+  // muted), again whenever the user adds or removes one.
+  let reported: string | null = null
+  const reportAudio = () => {
+    const custom = NOTIFICATION_CUES.filter((cue) => sounds.hasNotificationSound(cue))
+    if (custom.join() === reported) return
+    reported = custom.join()
+    void api
+      .reportAudio({ customNotificationSounds: custom })
+      .catch((error: unknown) => console.warn('[audio] Could not report sounds', error))
+  }
+  reportAudio()
+  state.subscribe(reportAudio)
   render()
   appEl.dataset.ready = 'true'
 

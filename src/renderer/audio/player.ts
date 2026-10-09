@@ -32,7 +32,8 @@ export type SoundSettings = Pick<
 >
 
 export interface PlayerDeps {
-  catalog: AudioCatalog
+  /** Read on every use, so sounds the user adds or removes apply immediately. */
+  catalog: () => AudioCatalog
   settings: () => SoundSettings
   createAudio?: (url: string) => AudioLike
   isVisible?: () => boolean
@@ -54,15 +55,17 @@ export class SoundPlayer {
   private ducks = 0
   private warnedBlocked = false
   private listeners = new Set<() => void>()
+  private musicKey: string
 
   constructor(private readonly deps: PlayerDeps) {
     this.createAudio = deps.createAudio ?? ((url) => new Audio(url))
     this.isVisible = deps.isVisible ?? (() => true)
-    this.playlist = new Playlist(deps.catalog.music, deps.settings().musicShuffle, deps.random)
+    this.playlist = new Playlist(deps.catalog().music, deps.settings().musicShuffle, deps.random)
+    this.musicKey = musicKeyOf(deps.catalog().music)
   }
 
   get catalog(): AudioCatalog {
-    return this.deps.catalog
+    return this.deps.catalog()
   }
 
   /** Called whenever "now playing" changes, for the settings screen. */
@@ -72,21 +75,26 @@ export class SoundPlayer {
   }
 
   hasNotificationSound(cue: NotificationCue): boolean {
-    return this.deps.catalog.notifications[cue] !== undefined
+    return this.deps.catalog().notifications[cue] !== undefined
   }
 
   playEffect(cue: EffectCue): boolean {
     const settings = this.deps.settings()
-    const url = this.deps.catalog.effects[cue]
+    const url = this.deps.catalog().effects[cue]
     if (!settings.soundEffects || !url) return false
     return this.playOneShot(url, settings.effectsVolume)
   }
 
   playNotification(cue: NotificationCue): boolean {
     const settings = this.deps.settings()
-    const url = this.deps.catalog.notifications[cue]
+    const url = this.deps.catalog().notifications[cue]
     if (!settings.playSound || !url) return false
     return this.playOneShot(url, settings.notificationVolume)
+  }
+
+  /** Plays a sound once for preview in Settings, regardless of the on/off switches. */
+  preview(url: string, volume: number): void {
+    this.playOneShot(url, volume)
   }
 
   nowPlaying(): Track | null {
@@ -96,6 +104,7 @@ export class SoundPlayer {
   /** Starts, stops or adjusts music to match the settings and window visibility. Safe to call often. */
   syncMusic() {
     const settings = this.deps.settings()
+    this.refreshTracks()
     this.playlist.setShuffle(settings.musicShuffle)
     const shouldPlay =
       settings.music && this.isVisible() && this.playlist.size > 0 && this.failuresInARow < this.playlist.size
@@ -129,6 +138,17 @@ export class SoundPlayer {
     this.music = null
     this.musicTrack = null
     this.emit()
+  }
+
+  /** Picks up added or removed tracks; stops the current one if it was removed. */
+  private refreshTracks() {
+    const tracks = this.deps.catalog().music
+    const key = musicKeyOf(tracks)
+    if (key === this.musicKey) return
+    this.musicKey = key
+    this.failuresInARow = 0
+    this.playlist.setTracks(tracks)
+    if (this.musicTrack && !tracks.some((t) => t.url === this.musicTrack?.url)) this.stopMusic()
   }
 
   private startTrack(track: Track | null) {
@@ -195,4 +215,9 @@ export class SoundPlayer {
   private emit() {
     for (const listener of this.listeners) listener()
   }
+}
+
+/** Identifies a track list so changes (tracks added or removed) can be detected cheaply. */
+function musicKeyOf(tracks: Track[]): string {
+  return tracks.map((t) => t.url).join('|')
 }

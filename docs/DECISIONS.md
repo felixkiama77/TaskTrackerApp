@@ -54,3 +54,12 @@ Decided with the product owner on 2026-10-08.
 - **"This and future" with a repeat count:** the count describes the whole series, so the new part of a split series gets the remaining occurrences.
 - **Legacy tasks that were already complete** are imported into the archive with classification "unknown", because the old app never recorded when they were completed.
 - **Dependencies:** date-fns was evaluated and removed — calendar arithmetic is done on `YYYY-MM-DD` values via UTC math (immune to DST) and formatting uses the built-in `Intl` APIs.
+
+## Sound (requested 2026-10-08)
+
+- **Three kinds of sound:** an action sound for each of six events (task created, completed, undo, deleted, skipped, error), a notification sound for each of four notification kinds (reminder, due now, overdue, missed summary), and background music played as a rotating playlist.
+- **Adding sounds:** chosen in **Settings › Sound** with the system file picker (several files at once for music). Files are checked (real audio by content; up to 5 MB per event sound, 60 MB per track) and copied into `%APPDATA%/tasktracker/sounds`, so they work without rebuilding and the originals can be moved or deleted. Built-in defaults can also ship with the app from `src/assets/audio` (see its README); a sound chosen in Settings overrides the built-in one for that event.
+- **No double sounds:** when a notification kind has a custom sound, its Windows notification is shown silently and the app plays the custom sound instead. Kinds without one keep the Windows sound.
+- **Background music** is off by default, shuffles by default (no track twice in a row), pauses while the window is hidden or minimized, and dips while other sounds play.
+- **Sound is never the only cue:** every event also has visible text (toast, notification or changed screen).
+- **Files are only deleted when their sound is removed or replaced.** The app never sweeps the sounds folder for unreferenced files, so a damaged data file can't cause sound files to be deleted.

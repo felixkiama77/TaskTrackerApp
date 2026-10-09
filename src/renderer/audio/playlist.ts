@@ -32,6 +32,15 @@ export class Playlist {
     return this.current()
   }
 
+  /** Replaces the tracks (e.g. the user added or removed some); keeps the current one if it remains. */
+  setTracks(tracks: Track[]) {
+    const current = this.current()
+    this.tracks = tracks
+    const index = current ? tracks.findIndex((t) => t.url === current.url) : -1
+    this.order = index >= 0 ? [index] : []
+    this.position = index >= 0 ? 0 : -1
+  }
+
   setShuffle(shuffle: boolean) {
     if (shuffle === this.shuffle) return
     this.shuffle = shuffle

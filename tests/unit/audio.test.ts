@@ -53,7 +53,12 @@ describe('audio catalog', () => {
 })
 
 const tracks = (n: number): Track[] =>
-  Array.from({ length: n }, (_, i) => ({ id: `t${i}`, title: `Track ${i}`, url: `u${i}` }))
+  Array.from({ length: n }, (_, i) => ({
+    id: `t${i}`,
+    title: `Track ${i}`,
+    url: `u${i}`,
+    source: 'bundled' as const,
+  }))
 
 /** Deterministic pseudo-random numbers for repeatable shuffle tests. */
 function seeded(seed: number) {
@@ -135,8 +140,11 @@ function setup(catalog: Partial<AudioCatalog>, overrides: Partial<SoundSettings>
   const created: FakeAudio[] = []
   const settings: SoundSettings = { ...DEFAULT_SETTINGS, ...overrides }
   const env = { visible: true }
-  const player = new SoundPlayer({
+  const current: { catalog: AudioCatalog } = {
     catalog: { effects: {}, notifications: {}, music: [], unrecognized: [], ...catalog },
+  }
+  const player = new SoundPlayer({
+    catalog: () => current.catalog,
     settings: () => settings,
     createAudio: (url) => {
       const audio = new FakeAudio(url, log)
@@ -146,7 +154,7 @@ function setup(catalog: Partial<AudioCatalog>, overrides: Partial<SoundSettings>
     isVisible: () => env.visible,
     random: seeded(3),
   })
-  return { player, log, created, settings, env }
+  return { player, log, created, settings, env, current }
 }
 
 describe('sound player', () => {

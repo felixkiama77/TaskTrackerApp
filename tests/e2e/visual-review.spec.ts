@@ -1,5 +1,8 @@
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { launchApp, tempUserData } from './fixtures'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { launchApp, silentWav, tempUserData } from './fixtures'
 import { FAKE_NOW, seedRealisticData } from './seed'
 
 /**
@@ -62,6 +65,33 @@ test('capture every screen for visual review', async () => {
     await shot(page, '09-categories')
     await nav(page, 'Settings')
     await shot(page, '10-settings')
+
+    // Settings › Sound with a few chosen sounds and a three-track playlist.
+    const picks = mkdtempSync(path.join(tmpdir(), 'tasktracker-visual-sounds-'))
+    const wav = (name: string) => {
+      const full = path.join(picks, name)
+      writeFileSync(full, silentWav(0.5))
+      return full
+    }
+    const pick = (files: string[]) =>
+      app.evaluate((_e, value) => {
+        process.env.TASK_TRACKER_TEST_PICK_FILES = value
+      }, files.join(path.delimiter))
+    const sound = page.getByRole('region', { name: 'Sound' })
+    await pick([wav('Soft bell.wav')])
+    await sound.getByRole('button', { name: 'Choose a file for “Reminder”' }).click()
+    await pick([wav('Alarm (urgent).wav')])
+    await sound.getByRole('button', { name: 'Choose a file for “Overdue”' }).click()
+    await pick([wav('Success chime.wav')])
+    await sound.getByRole('button', { name: 'Choose a file for “Task completed”' }).click()
+    await pick([wav('01 Morning light.wav'), wav('02 Deep focus.wav'), wav('03 Rainy evening.wav')])
+    await sound.getByRole('button', { name: 'Add tracks…' }).click()
+    await expect(sound.getByRole('list', { name: 'Music tracks' }).locator('.sound-row')).toHaveCount(3)
+    await sound.getByRole('heading', { name: 'Sound', exact: true }).scrollIntoViewIfNeeded()
+    await shot(page, '10b-settings-sound')
+    await sound.getByRole('heading', { name: 'Background music' }).scrollIntoViewIfNeeded()
+    await shot(page, '10c-settings-music')
+    rmSync(picks, { recursive: true, force: true })
 
     // Editor with progressive disclosure for a weekly repeat.
     await nav(page, 'All tasks')

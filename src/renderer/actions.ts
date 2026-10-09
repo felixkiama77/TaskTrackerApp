@@ -1,7 +1,8 @@
 import { formatLongDate } from '../domain/format'
 import { overdueOccurrences, type Occurrence } from '../domain/occurrences'
 import type { Command } from '../domain/schemas'
-import type { DispatchResult, TaskTrackerApi } from '../shared/api'
+import type { SoundSlot } from '../domain/sounds'
+import type { DispatchResult, SoundImportResult, TaskTrackerApi } from '../shared/api'
 import type { EffectCue } from './audio/catalog'
 import type { SoundPlayer } from './audio/player'
 import { clock } from './clock'
@@ -173,6 +174,49 @@ export class Actions {
   missedCount(taskId: string): number {
     const task = state.data.tasks.find((t) => t.id === taskId)
     return task ? overdueOccurrences(task, this.now()).length : 0
+  }
+
+  /** Opens the file picker for a sound slot and reports what was added. */
+  async chooseSound(slot: SoundSlot, label: string): Promise<void> {
+    let result: SoundImportResult
+    try {
+      result = await this.api.chooseSound(slot)
+    } catch (error) {
+      console.error('[actions] chooseSound failed', error)
+      this.toast({ tone: 'error', title: 'Couldn’t add the sound', body: 'Please try again.' })
+      return
+    }
+    if (result.cancelled) return
+    if (result.added > 0) {
+      this.toast({
+        tone: 'success',
+        title:
+          slot.kind === 'music'
+            ? `Added ${result.added} ${result.added === 1 ? 'track' : 'tracks'}`
+            : `Sound for “${label}” updated`,
+      })
+    }
+    if (result.errors.length > 0) {
+      this.toast({
+        tone: 'error',
+        title: result.added > 0 ? 'Some files couldn’t be added' : 'That file couldn’t be added',
+        body: result.errors.join(' '),
+      })
+    }
+  }
+
+  async removeSound(slot: SoundSlot, label: string, trackId?: string): Promise<void> {
+    let result: DispatchResult
+    try {
+      result = await this.api.removeSound(slot, trackId)
+    } catch {
+      result = { ok: false, error: 'Please try again.' }
+    }
+    this.toast(
+      result.ok
+        ? { tone: 'success', title: `Removed “${label}”` }
+        : { tone: 'error', title: 'Couldn’t remove the sound', body: result.error },
+    )
   }
 
   async testNotification() {

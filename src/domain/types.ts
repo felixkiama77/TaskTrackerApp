@@ -1,4 +1,5 @@
 import type { LocalDate, LocalTime, Weekday } from './dates'
+import { emptyUserSounds, type UserSounds } from './sounds'
 
 export type Difficulty = 'easy' | 'medium' | 'hard'
 
@@ -107,6 +108,8 @@ export interface AppData {
   categories: Category[]
   archive: ArchiveRecord[]
   settings: Settings
+  /** Sound files the user added in Settings (stored in the app's data folder). */
+  sounds: UserSounds
   /** Notification bookkeeping, owned by the main-process scheduler. */
   alerts: {
     /** Dedupe key → epoch ms delivered. */
@@ -142,6 +145,7 @@ export function emptyAppData(): AppData {
     categories: [],
     archive: [],
     settings: { ...DEFAULT_SETTINGS },
+    sounds: emptyUserSounds(),
     alerts: { delivered: {}, lastCheckedAt: null },
     meta: { legacyImportedAt: null },
   }

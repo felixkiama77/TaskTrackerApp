@@ -1,5 +1,6 @@
 import type { LegacyImportReport, LegacyRaw } from '../domain/legacy'
 import type { Command } from '../domain/schemas'
+import type { SoundSlot } from '../domain/sounds'
 import type { AppData } from '../domain/types'
 
 /**
@@ -47,6 +48,14 @@ export interface AppInfo {
 
 export type TestNotificationResult = { ok: true } | { ok: false; error: string }
 
+/** Result of choosing sound files in Settings. */
+export interface SoundImportResult {
+  cancelled: boolean
+  added: number
+  /** One message per file that couldn't be used. */
+  errors: string[]
+}
+
 /** Which notification kinds have a custom sound in this build (their system sound is then muted). */
 export interface AudioReport {
   customNotificationSounds: ('reminder' | 'due' | 'overdue' | 'missed')[]
@@ -60,6 +69,9 @@ export interface TaskTrackerApi {
   getAppInfo(): Promise<AppInfo>
   openDataFolder(): Promise<void>
   reportAudio(report: AudioReport): Promise<void>
+  /** Opens the system file picker (several files for music) and adds the chosen sounds. */
+  chooseSound(slot: SoundSlot): Promise<SoundImportResult>
+  removeSound(slot: SoundSlot, trackId?: string): Promise<DispatchResult>
   onSnapshot(listener: (snapshot: Snapshot) => void): () => void
   onAlert(listener: (alert: AlertMessage) => void): () => void
   onNavigate(listener: (target: NavigateMessage) => void): () => void
@@ -76,6 +88,8 @@ export const Channels = {
   getAppInfo: 'tt:get-app-info',
   openDataFolder: 'tt:open-data-folder',
   reportAudio: 'tt:report-audio',
+  chooseSound: 'tt:choose-sound',
+  removeSound: 'tt:remove-sound',
   snapshot: 'tt:snapshot',
   alert: 'tt:alert',
   navigate: 'tt:navigate',

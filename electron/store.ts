@@ -1,12 +1,15 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
+import { EFFECT_CUES, NOTIFICATION_CUES, emptyUserSounds, type UserSounds } from '../src/domain/sounds'
 import {
   ArchiveRecordSchema,
   CategorySchema,
   IsoTimestampSchema,
   SettingsSchema,
   TaskDefinitionSchema,
+  UserSoundEntrySchema,
+  UserTrackSchema,
 } from '../src/domain/schemas'
 import { emptyAppData, type AppData } from '../src/domain/types'
 import type { StartupIssue } from '../src/shared/api'
@@ -36,6 +39,36 @@ const AlertsSchema = z.object({
   delivered: z.record(z.string(), z.number()).catch({}),
   lastCheckedAt: z.number().nullable().catch(null),
 })
+/** Keeps every valid sound entry; an invalid one is dropped on its own (its file is left on disk). */
+function parseSounds(raw: unknown): UserSounds {
+  const sounds = emptyUserSounds()
+  if (!raw || typeof raw !== 'object') return sounds
+  const doc = raw as {
+    effects?: Record<string, unknown>
+    notifications?: Record<string, unknown>
+    music?: unknown
+  }
+  for (const cue of EFFECT_CUES) {
+    const parsed = UserSoundEntrySchema.safeParse(doc.effects?.[cue])
+    if (parsed.success) sounds.effects[cue] = parsed.data
+  }
+  for (const cue of NOTIFICATION_CUES) {
+    const parsed = UserSoundEntrySchema.safeParse(doc.notifications?.[cue])
+    if (parsed.success) sounds.notifications[cue] = parsed.data
+  }
+  if (Array.isArray(doc.music)) {
+    const ids = new Set<string>()
+    for (const track of doc.music) {
+      const parsed = UserTrackSchema.safeParse(track)
+      if (parsed.success && !ids.has(parsed.data.id)) {
+        ids.add(parsed.data.id)
+        sounds.music.push(parsed.data)
+      }
+    }
+  }
+  return sounds
+}
+
 const MetaSchema = z.object({ legacyImportedAt: IsoTimestampSchema.nullable().catch(null) })
 
 /**
@@ -92,6 +125,7 @@ export function parseAppData(raw: unknown): ParsedData {
       categories,
       archive,
       settings: SettingsSchema.parse(doc.settings ?? {}),
+      sounds: parseSounds(doc.sounds),
       alerts: AlertsSchema.parse(doc.alerts ?? {}),
       meta: MetaSchema.parse(doc.meta ?? {}),
     },

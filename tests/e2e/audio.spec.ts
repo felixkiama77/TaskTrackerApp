@@ -1,28 +1,8 @@
 import { expect, test } from '@playwright/test'
 import { rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { launchApp, tempUserData } from './fixtures'
+import { launchApp, silentWav, tempUserData } from './fixtures'
 import { FAKE_NOW } from './seed'
-
-/** A silent 16-bit mono WAV, so the test exercises playback without making any noise. */
-function silentWav(seconds: number, sampleRate = 22_050): Buffer {
-  const samples = Math.round(seconds * sampleRate)
-  const data = samples * 2
-  const buffer = Buffer.alloc(44 + data)
-  buffer.write('RIFF', 0)
-  buffer.writeUInt32LE(36 + data, 4)
-  buffer.write('WAVEfmt ', 8)
-  buffer.writeUInt32LE(16, 16) // fmt chunk size
-  buffer.writeUInt16LE(1, 20) // PCM
-  buffer.writeUInt16LE(1, 22) // mono
-  buffer.writeUInt32LE(sampleRate, 24)
-  buffer.writeUInt32LE(sampleRate * 2, 28) // byte rate
-  buffer.writeUInt16LE(2, 32) // block align
-  buffer.writeUInt16LE(16, 34) // bits per sample
-  buffer.write('data', 36)
-  buffer.writeUInt32LE(data, 40)
-  return buffer
-}
 
 test('audio plays from the app’s own files without a click, even while hidden in the tray', async () => {
   // Served next to index.html, i.e. from the same place as bundled sounds.
@@ -55,7 +35,7 @@ test('audio plays from the app’s own files without a click, even while hidden 
   }
 })
 
-test('Settings › Sound explains what has been added and disables controls that would do nothing', async () => {
+test('Settings › Sound shows each event’s current sound and offers to choose one', async () => {
   const { dir, cleanup } = tempUserData()
   const { app, page } = await launchApp(dir, { fakeNow: FAKE_NOW })
   try {
@@ -65,13 +45,23 @@ test('Settings › Sound explains what has been added and disables controls that
       .click()
     const section = page.getByRole('region', { name: 'Sound' })
     await expect(section).toBeVisible()
-    // This build ships without audio files yet.
-    await expect(section).toContainText('No sound effects have been added yet.')
-    await expect(section).toContainText('notifications use the Windows sound')
-    await expect(section).toContainText('No music has been added yet.')
-    await expect(section.getByRole('switch', { name: 'Background music' })).toBeDisabled()
-    await expect(section.getByRole('switch', { name: 'Sound effects' })).toBeDisabled()
+    // Without any files, every event shows its fallback and offers a file picker.
+    await expect(section).toContainText('Notifications currently use the Windows sound.')
+    for (const label of ['Reminder', 'Due now', 'Overdue', 'Missed reminders summary']) {
+      await expect(
+        section.locator('.sound-row').filter({ has: page.getByText(label, { exact: true }) }),
+      ).toContainText('Windows sound')
+      await expect(section.getByRole('button', { name: `Choose a file for “${label}”` })).toBeEnabled()
+    }
+    for (const label of ['Task created', 'Task completed', 'Undo', 'Task deleted', 'Occurrence skipped']) {
+      await expect(
+        section.locator('.sound-row').filter({ has: page.getByText(label, { exact: true }) }),
+      ).toContainText('No sound')
+    }
+    await expect(section.getByRole('button', { name: 'Add tracks…' })).toBeEnabled()
+    // Volume has nothing to adjust until a sound exists.
     await expect(section.getByRole('slider', { name: 'Music volume' })).toBeDisabled()
+    await expect(section.getByRole('slider', { name: 'Action sound volume' })).toBeDisabled()
   } finally {
     await app.close()
     cleanup()

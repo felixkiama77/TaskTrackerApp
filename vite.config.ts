@@ -21,6 +21,7 @@ function contentSecurityPolicy(): Plugin {
         "script-src 'self'",
         dev ? "style-src 'self' 'unsafe-inline'" : "style-src 'self'",
         "img-src 'self' data:",
+        "media-src 'self' tt-sound:",
         "font-src 'self'",
         dev ? `connect-src 'self' ws://localhost:${DEV_PORT}` : "connect-src 'self'",
         "object-src 'none'",

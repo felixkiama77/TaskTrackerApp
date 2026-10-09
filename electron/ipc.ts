@@ -2,17 +2,20 @@ import { ipcMain, type IpcMainInvokeEvent, type WebFrameMain } from 'electron'
 import { z } from 'zod'
 import { applyCommand, CommandError } from '../src/domain/commands'
 import { importLegacyData, type LegacyImportReport } from '../src/domain/legacy'
-import { CommandSchema, type Command } from '../src/domain/schemas'
+import { CommandSchema, IdSchema, SoundSlotSchema, type Command } from '../src/domain/schemas'
+import { assignSound, folderFor, MAX_TRACKS, removeSound } from '../src/domain/sounds'
 import type { AppData } from '../src/domain/types'
 import {
   Channels,
   type AppInfo,
   type AudioReport,
+  type SoundImportResult,
   type DispatchResult,
   type Snapshot,
   type StartupIssue,
   type TestNotificationResult,
 } from '../src/shared/api'
+import { SoundImportError, type SoundLibrary } from './soundLibrary'
 import type { Store } from './store'
 
 /**
@@ -31,11 +34,17 @@ export interface IpcDeps {
   appInfo(): AppInfo
   openDataFolder(): Promise<void>
   setAudioReport(report: AudioReport): void
+  sounds: SoundLibrary
+  /** Shows the system file picker; returns chosen paths (empty when cancelled). */
+  pickSoundFiles(multiple: boolean): Promise<string[]>
 }
 
 const AudioReportSchema = z.object({
   customNotificationSounds: z.array(z.enum(['reminder', 'due', 'overdue', 'missed'])).max(4),
 })
+
+const ChooseSoundSchema = z.object({ slot: SoundSlotSchema })
+const RemoveSoundSchema = z.object({ slot: SoundSlotSchema, trackId: IdSchema.optional() })
 
 const LegacyRawSchema = z.object({
   tasks: z.string().max(5_000_000).nullable(),
@@ -107,4 +116,64 @@ export function registerIpc(deps: IpcDeps) {
   handle(Channels.getAppInfo, () => deps.appInfo())
   handle(Channels.openDataFolder, () => deps.openDataFolder())
   handle(Channels.reportAudio, (_event, payload) => deps.setAudioReport(AudioReportSchema.parse(payload)))
+
+  handle(Channels.chooseSound, async (_event, payload): Promise<SoundImportResult> => {
+    const { slot } = ChooseSoundSchema.parse(payload)
+    const paths = await deps.pickSoundFiles(slot.kind === 'music')
+    if (paths.length === 0) return { cancelled: true, added: 0, errors: [] }
+    const errors: string[] = []
+    const imported: { file: string; originalName: string }[] = []
+    // An effect or notification slot holds one file; extra picks are ignored.
+    for (const source of slot.kind === 'music' ? paths : paths.slice(0, 1)) {
+      if (slot.kind === 'music' && deps.store.get().sounds.music.length + imported.length >= MAX_TRACKS) {
+        errors.push(`You can add up to ${MAX_TRACKS} music tracks.`)
+        break
+      }
+      try {
+        imported.push(await deps.sounds.importFile(source, slot))
+      } catch (error) {
+        if (!(error instanceof SoundImportError)) console.error('[ipc] Sound import failed', error)
+        errors.push(error instanceof SoundImportError ? error.message : 'A file couldn’t be added.')
+      }
+    }
+    if (imported.length === 0) return { cancelled: false, added: 0, errors }
+
+    const previous = deps.store.get()
+    let sounds = previous.sounds
+    const replaced: string[] = []
+    const addedAt = new Date(deps.now()).toISOString()
+    for (const item of imported) {
+      const result = assignSound(sounds, slot, { ...item, addedAt }, deps.newId())
+      sounds = result.sounds
+      if (result.replacedFile) replaced.push(result.replacedFile)
+    }
+    const next = { ...previous, sounds }
+    try {
+      await deps.store.replace(next)
+    } catch (error) {
+      console.error('[ipc] Could not save sounds', error)
+      await Promise.all(imported.map((i) => deps.sounds.deleteFile(folderFor(slot), i.file)))
+      return { cancelled: false, added: 0, errors: ['The sounds couldn’t be saved. Please try again.'] }
+    }
+    await Promise.all(replaced.map((file) => deps.sounds.deleteFile(folderFor(slot), file)))
+    deps.onChanged(previous, next, null)
+    return { cancelled: false, added: imported.length, errors }
+  })
+
+  handle(Channels.removeSound, async (_event, payload): Promise<DispatchResult> => {
+    const { slot, trackId } = RemoveSoundSchema.parse(payload)
+    const previous = deps.store.get()
+    const { sounds, removedFile } = removeSound(previous.sounds, slot, trackId)
+    if (!removedFile) return { ok: true, changed: false, message: 'Nothing to remove.' }
+    const next = { ...previous, sounds }
+    try {
+      await deps.store.replace(next)
+    } catch (error) {
+      console.error('[ipc] Could not save sounds', error)
+      return { ok: false, error: 'The sound couldn’t be removed. Please try again.' }
+    }
+    await deps.sounds.deleteFile(folderFor(slot), removedFile)
+    deps.onChanged(previous, next, null)
+    return { ok: true, changed: true, message: 'Sound removed.' }
+  })
 }
