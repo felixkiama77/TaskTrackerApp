@@ -108,6 +108,11 @@
   color: var(--color-selected-text);
 }
 
+/* Secondary grey is too light on the blue highlight (axe: colour contrast), so counts take the blue. */
+.nav-item[aria-current='page'] .nav-item__count {
+  color: var(--color-selected-text);
+}
+
 .nav-item[aria-current='page'] .icon {
   color: var(--color-selected-text);
 }

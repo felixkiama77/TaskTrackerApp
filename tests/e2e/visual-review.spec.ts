@@ -10,7 +10,10 @@ import { FAKE_NOW, seedRealisticData } from './seed'
 const DIR = 'test-results/screens'
 
 async function setSize(app: ElectronApplication, width: number, height: number) {
-  await app.evaluate(({ BrowserWindow }, [w, h]) => BrowserWindow.getAllWindows()[0].setContentSize(w, h), [width, height])
+  await app.evaluate(
+    ({ BrowserWindow }, [w, h]) => BrowserWindow.getAllWindows()[0].setContentSize(w, h),
+    [width, height],
+  )
 }
 
 async function shot(page: Page, name: string) {
@@ -19,7 +22,10 @@ async function shot(page: Page, name: string) {
 }
 
 async function nav(page: Page, label: string) {
-  await page.getByRole('navigation').getByRole('button', { name: new RegExp(`^${label}`) }).click()
+  await page
+    .getByRole('navigation')
+    .getByRole('button', { name: new RegExp(`^${label}`) })
+    .click()
 }
 
 test('capture every screen for visual review', async () => {
@@ -75,7 +81,10 @@ test('capture every screen for visual review', async () => {
     await page.getByRole('button', { name: 'Cancel' }).click()
 
     // Detail dialog for a recurring task with a backlog.
-    await page.getByRole('button', { name: /^Team standup notes, overdue/ }).first().click()
+    await page
+      .getByRole('button', { name: /^Team standup notes, overdue/ })
+      .first()
+      .click()
     await shot(page, '13-detail-recurring')
     await page.getByRole('button', { name: 'Delete', exact: true }).click()
     await shot(page, '14-delete-choice')

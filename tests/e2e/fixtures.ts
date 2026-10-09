@@ -18,6 +18,8 @@ export async function launchApp(
     env: {
       ...process.env,
       TASK_TRACKER_USER_DATA: userData,
+      // Record notifications instead of showing real ones on the desktop during tests.
+      TASK_TRACKER_TEST_NOTIFIER: 'record',
       ...(options.fakeNow ? { TASK_TRACKER_FAKE_NOW: options.fakeNow } : {}),
       ...options.env,
     },
@@ -25,4 +27,13 @@ export async function launchApp(
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
   return { app, page }
+}
+
+/** Notifications the app asked the OS to show (recorded in test mode). */
+export function recordedNotifications(app: ElectronApplication) {
+  return app.evaluate(
+    () =>
+      (globalThis as { __taskTrackerNotifications?: { title: string; body: string }[] })
+        .__taskTrackerNotifications ?? [],
+  )
 }

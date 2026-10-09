@@ -18,19 +18,48 @@ import { routeKey, sidebar, type ViewContent } from './views/shell'
 
 const focusKeyOf = (el: Element | null) => (el instanceof HTMLElement ? el.dataset.focusKey : undefined)
 
+interface Draft {
+  value: string
+  start: number | null
+  end: number | null
+}
+
 /**
- * Keeps keyboard focus stable across re-renders. If the focused control disappeared (e.g. its row
- * was completed), focus moves to the next control that still exists, then the previous one.
+ * Keeps keyboard focus and half-typed text stable across re-renders (e.g. the per-minute refresh).
+ * If the focused control disappeared (e.g. its row was completed), focus moves to the next control
+ * that still exists, then the previous one.
  */
 function captureFocus(container: HTMLElement) {
   const focused = focusKeyOf(document.activeElement)
   const order = [...container.querySelectorAll<HTMLElement>('[data-focus-key]')].map(
     (el) => el.dataset.focusKey!,
   )
+  const drafts = new Map<string, Draft>()
+  const textFields = container.querySelectorAll<HTMLInputElement>(
+    'input[data-focus-key]:not([type="checkbox"]):not([type="radio"])',
+  )
+  for (const field of textFields) {
+    drafts.set(field.dataset.focusKey!, {
+      value: field.value,
+      start: field.selectionStart,
+      end: field.selectionEnd,
+    })
+  }
   return () => {
-    if (!focused || document.querySelector('dialog[open]')) return
     const find = (key: string) =>
       container.querySelector<HTMLElement>(`[data-focus-key="${CSS.escape(key)}"]`)
+    for (const [key, draft] of drafts) {
+      const field = find(key)
+      if (field instanceof HTMLInputElement && field.value !== draft.value) field.value = draft.value
+    }
+    if (!focused || document.querySelector('dialog[open]')) return
+    const draft = drafts.get(focused)
+    const sameField = find(focused)
+    if (sameField instanceof HTMLInputElement && draft && draft.start !== null) {
+      sameField.focus({ preventScroll: true })
+      sameField.setSelectionRange(draft.start, draft.end)
+      return
+    }
     const index = order.indexOf(focused)
     const candidates = [focused, ...order.slice(index + 1), ...order.slice(0, Math.max(index, 0)).reverse()]
     for (const key of candidates) {

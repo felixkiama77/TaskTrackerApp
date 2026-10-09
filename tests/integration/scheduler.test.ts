@@ -173,6 +173,26 @@ describe('ReminderScheduler (FR-23 – FR-26)', () => {
     expect(disabled.shown).toEqual([])
   })
 
+  it('keeps checking after a check fails, so one bad record cannot stop all reminders', async () => {
+    const h = harness(dataWith([task]), at('2026-10-08', '16:00'))
+    h.scheduler.start()
+    await h.scheduler.check()
+    const realData = h.state.data
+    // Simulate a check that throws (e.g. unreadable data), then recovery.
+    Object.defineProperty(h.state, 'data', {
+      configurable: true,
+      get: () => {
+        throw new Error('boom')
+      },
+    })
+    h.state.now = at('2026-10-08', '16:10')
+    await expect(h.scheduler.check()).resolves.toBeUndefined()
+    expect(h.timers.length).toBeGreaterThan(0) // the next check is still scheduled
+    Object.defineProperty(h.state, 'data', { configurable: true, writable: true, value: realData })
+    await h.advanceTo(at('2026-10-08', '16:31'))
+    expect(h.shown.map((n) => n.title)).toEqual(['Task reminder'])
+  })
+
   it('keeps working when the OS refuses a notification, and still shows the in-app alert', async () => {
     const h = harness(dataWith([task]), at('2026-10-08', '16:00'), { notifierWorks: false })
     await h.scheduler.check()

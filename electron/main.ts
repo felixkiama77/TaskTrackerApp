@@ -1,4 +1,15 @@
-import { app, BrowserWindow, dialog, Menu, nativeImage, powerMonitor, session, shell, Tray } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  Menu,
+  nativeImage,
+  Notification,
+  powerMonitor,
+  session,
+  shell,
+  Tray,
+} from 'electron'
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -7,7 +18,7 @@ import type { AppData } from '../src/domain/types'
 import { Channels, type AlertMessage, type NavigateMessage } from '../src/shared/api'
 import { registerIpc, snapshotOf } from './ipc'
 import { createElectronNotifier } from './notifier'
-import { ReminderScheduler, type Notifier } from './scheduler'
+import { ReminderScheduler, type NotificationRequest, type Notifier } from './scheduler'
 import { Store } from './store'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -171,6 +182,21 @@ function hardenWebContents() {
   session.defaultSession.setPermissionCheckHandler(() => false)
 }
 
+/**
+ * Test-only notifier: records notifications in the main process instead of showing them, so the
+ * automated tests don't put real notifications on the desktop. Never used outside test mode.
+ */
+function recordingNotifier(): Notifier {
+  const log: NotificationRequest[] = []
+  ;(globalThis as { __taskTrackerNotifications?: NotificationRequest[] }).__taskTrackerNotifications = log
+  return {
+    show(request) {
+      log.push(request)
+      return true
+    },
+  }
+}
+
 async function maintain() {
   if (!store) return
   const result = runMaintenance(store.get(), now())
@@ -192,17 +218,20 @@ async function start() {
     maintain().catch((error: unknown) => console.error('[main] Maintenance failed:', error))
   }, 3_600_000)
 
-  const activeNotifier = createElectronNotifier({
-    iconPath,
-    isSilent: () => !openedStore.get().settings.playSound,
-    onClick: (request) => {
-      showWindow()
-      if (request.taskId && request.occurrenceKey) {
-        const target: NavigateMessage = { taskId: request.taskId, occurrenceKey: request.occurrenceKey }
-        send(Channels.navigate, target)
-      }
-    },
-  })
+  const activeNotifier: Notifier =
+    TEST_MODE && process.env.TASK_TRACKER_TEST_NOTIFIER === 'record'
+      ? recordingNotifier()
+      : createElectronNotifier({
+          iconPath,
+          isSilent: () => !openedStore.get().settings.playSound,
+          onClick: (request) => {
+            showWindow()
+            if (request.taskId && request.occurrenceKey) {
+              const target: NavigateMessage = { taskId: request.taskId, occurrenceKey: request.occurrenceKey }
+              send(Channels.navigate, target)
+            }
+          },
+        })
   notifier = activeNotifier
 
   const activeScheduler = new ReminderScheduler({
@@ -248,7 +277,7 @@ async function start() {
       dataDirectory: app.getPath('userData'),
       platform: process.platform,
       clockOffsetMs,
-      notificationsSupported: true,
+      notificationsSupported: Notification.isSupported(),
       isPackaged: app.isPackaged,
     }),
     openDataFolder: async () => {

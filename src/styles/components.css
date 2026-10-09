@@ -793,8 +793,10 @@ input.switch {
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-4);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface-sunken);
+  /* Canvas rather than the sunken grey so hint text keeps at least 4.5:1 contrast. */
+  background: var(--color-canvas);
 }
 
 .summary-line {

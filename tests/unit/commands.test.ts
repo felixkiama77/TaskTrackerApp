@@ -115,14 +115,21 @@ describe('completing occurrences (FR-17)', () => {
 
 describe('skipping', () => {
   it('a skipped occurrence can be restored (undo)', () => {
-    const task = makeTask({ id: 't', startDate: '2026-10-08', recurrence: { kind: 'daily' }, end: { kind: 'never' } })
+    const task = makeTask({
+      id: 't',
+      startDate: '2026-10-08',
+      recurrence: { kind: 'daily' },
+      end: { kind: 'never' },
+    })
     const skipped = run(dataWith([task]), { type: 'occurrence/skip', taskId: 't', key: '2026-10-08' })
     expect(nextOccurrence(skipped.data.tasks[0], at('2026-10-08'))?.key).toBe('2026-10-09')
     const restored = run(skipped.data, { type: 'occurrence/restore', taskId: 't', key: '2026-10-08' })
     expect(restored.data.tasks[0].exceptions).toEqual({})
     expect(nextOccurrence(restored.data.tasks[0], at('2026-10-08'))?.key).toBe('2026-10-08')
     // Restoring something that was not skipped changes nothing.
-    expect(run(restored.data, { type: 'occurrence/restore', taskId: 't', key: '2026-10-08' }).changed).toBe(false)
+    expect(run(restored.data, { type: 'occurrence/restore', taskId: 't', key: '2026-10-08' }).changed).toBe(
+      false,
+    )
   })
 
   const daily = makeTask({

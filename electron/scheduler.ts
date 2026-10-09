@@ -69,8 +69,14 @@ export class ReminderScheduler {
 
   /** Runs a check now (also used after edits, resume from sleep and clock changes). */
   check(): Promise<void> {
-    // Checks never overlap; a request during a check runs right after it.
-    this.checking = (this.checking ?? Promise.resolve()).then(() => this.runCheck())
+    // Checks never overlap; a request during a check runs right after it. A failed check is logged
+    // and the next one is still scheduled, so one bad record can never stop all reminders.
+    this.checking = (this.checking ?? Promise.resolve())
+      .then(() => this.runCheck())
+      .catch((error: unknown) => {
+        console.error('[scheduler] Check failed:', error)
+        this.scheduleNext(this.deps.now())
+      })
     return this.checking
   }
 
@@ -130,8 +136,14 @@ export class ReminderScheduler {
   private scheduleNext(now: number) {
     if (!this.running) return
     if (this.timer !== null) this.deps.clearTimer(this.timer)
-    const upcoming = alertsBetween(this.deps.getData(), now, now + MAX_TICK_MS)[0]
-    const delay = upcoming ? Math.max(0, upcoming.at - now) + 50 : MAX_TICK_MS
+    let delay = MAX_TICK_MS
+    try {
+      const upcoming = alertsBetween(this.deps.getData(), now, now + MAX_TICK_MS)[0]
+      if (upcoming) delay = Math.max(0, upcoming.at - now) + 50
+    } catch (error) {
+      // Fall back to the regular tick; the next check logs the problem again if it persists.
+      console.error('[scheduler] Could not work out the next alert time:', error)
+    }
     this.timer = this.deps.setTimer(() => {
       this.timer = null
       void this.check()

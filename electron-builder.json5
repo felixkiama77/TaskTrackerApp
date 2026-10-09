@@ -1,49 +1,40 @@
 // @see - https://www.electron.build/configuration/configuration
 {
-  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  $schema: 'https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json',
   // Also used as the Windows AppUserModelID, which native notifications depend on.
-  "appId": "io.github.felixkiama77.tasktracker",
-  "productName": "Task Tracker",
-  "asar": true,
-  "directories": {
-    "output": "release/${version}",
-    "buildResources": "build"
+  appId: 'io.github.felixkiama77.tasktracker',
+  productName: 'Task Tracker',
+  asar: true,
+  directories: {
+    output: 'release/${version}',
+    buildResources: 'build',
   },
-  "files": [
-    "dist",
-    "dist-electron"
-  ],
-  "mac": {
-    "target": [
-      "dmg"
-    ],
-    "icon": "build/icon.png",
-    "artifactName": "Task-Tracker-Mac-${version}-Installer.${ext}"
+  files: ['dist', 'dist-electron'],
+  mac: {
+    target: ['dmg'],
+    icon: 'build/icon.png',
+    artifactName: 'Task-Tracker-Mac-${version}-Installer.${ext}',
   },
-  "win": {
-    "target": [
+  win: {
+    target: [
       {
-        "target": "nsis",
-        "arch": [
-          "x64"
-        ]
-      }
+        target: 'nsis',
+        arch: ['x64'],
+      },
     ],
-    "icon": "build/icon.ico",
-    "artifactName": "Task-Tracker-Windows-${version}-Setup.${ext}"
+    icon: 'build/icon.ico',
+    artifactName: 'Task-Tracker-Windows-${version}-Setup.${ext}',
   },
-  "nsis": {
-    "oneClick": false,
-    "perMachine": false,
-    "allowToChangeInstallationDirectory": true,
-    "deleteAppDataOnUninstall": false,
-    "shortcutName": "Task Tracker"
+  nsis: {
+    oneClick: false,
+    perMachine: false,
+    allowToChangeInstallationDirectory: true,
+    deleteAppDataOnUninstall: false,
+    shortcutName: 'Task Tracker',
   },
-  "linux": {
-    "target": [
-      "AppImage"
-    ],
-    "icon": "build/icons",
-    "artifactName": "Task-Tracker-Linux-${version}.${ext}"
-  }
+  linux: {
+    target: ['AppImage'],
+    icon: 'build/icons',
+    artifactName: 'Task-Tracker-Linux-${version}.${ext}',
+  },
 }

@@ -26,6 +26,8 @@
   --color-surface-sunken: color-mix(in srgb, var(--soft-gray) 30%, var(--surface-light));
   --color-text: var(--charcoal);
   --color-text-secondary: var(--muted-gray);
+  /* Secondary text on tinted surfaces (calendar items, badges): muted grey alone falls below 4.5:1 there. */
+  --color-text-secondary-on-tint: color-mix(in srgb, var(--muted-gray) 70%, var(--charcoal));
   --color-text-on-brand: var(--white);
   --color-border: var(--soft-gray);
   --color-border-strong: color-mix(in srgb, var(--muted-gray) 40%, var(--soft-gray));

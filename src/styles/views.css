@@ -103,8 +103,9 @@
   border-bottom: 0;
 }
 
+/* The canvas tint keeps secondary text at 4.6:1; the darker sunken grey would drop it below 4.5:1. */
 .calendar-day--outside {
-  background: var(--color-surface-sunken);
+  background: var(--color-canvas);
 }
 
 .calendar-day__number {
@@ -159,7 +160,7 @@
 
 .cal-event__time {
   flex: none;
-  color: var(--color-text-secondary);
+  color: var(--color-text-secondary-on-tint);
   font-variant-numeric: tabular-nums;
 }
 
@@ -191,7 +192,7 @@
 }
 
 .cal-event--completed {
-  color: var(--color-text-secondary);
+  color: var(--color-text-secondary-on-tint);
 }
 
 .cal-event--completed .cal-event__text {
