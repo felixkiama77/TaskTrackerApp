@@ -16,7 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "vite build && playwright test",
-    "check": "npm run typecheck && npm run lint && npm run test"
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "icons": "electron scripts/generate-icons.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -40,5 +41,6 @@
     "flatpickr": "^4.6.13",
     "lucide": "^1.49.0",
     "zod": "^4.6.5"
-  }
+  },
+  "description": "A desktop task tracker with recurring tasks, reminders, a calendar and a completion archive."
 }

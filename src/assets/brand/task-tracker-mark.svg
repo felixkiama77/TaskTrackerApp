@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Task Tracker">
+  <rect width="512" height="512" rx="102" fill="#2563EB"/>
+  <path d="M108 122H405L386 190H108Z" fill="#FFFFFF"/>
+  <rect x="207" y="237" width="80" height="177" fill="#FFFFFF"/>
+</svg>

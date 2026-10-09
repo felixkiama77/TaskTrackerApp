@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+  <!-- Pixel-aligned version of task-tracker-mark.svg for 20px; same proportions, edges on the pixel grid. -->
+  <rect width="20" height="20" rx="4" fill="#2563EB"/>
+  <path d="M4 5H16L15.2 7H4Z" fill="#FFFFFF"/>
+  <rect x="8" y="9" width="3" height="7" fill="#FFFFFF"/>
+</svg>

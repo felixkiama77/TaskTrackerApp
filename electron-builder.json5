@@ -1,11 +1,13 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "YourAppID",
+  // Also used as the Windows AppUserModelID, which native notifications depend on.
+  "appId": "io.github.felixkiama77.tasktracker",
+  "productName": "Task Tracker",
   "asar": true,
-  "productName": "YourAppName",
   "directories": {
-    "output": "release/${version}"
+    "output": "release/${version}",
+    "buildResources": "build"
   },
   "files": [
     "dist",
@@ -15,7 +17,8 @@
     "target": [
       "dmg"
     ],
-    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
+    "icon": "build/icon.png",
+    "artifactName": "Task-Tracker-Mac-${version}-Installer.${ext}"
   },
   "win": {
     "target": [
@@ -26,18 +29,21 @@
         ]
       }
     ],
-    "artifactName": "${productName}-Windows-${version}-Setup.${ext}"
+    "icon": "build/icon.ico",
+    "artifactName": "Task-Tracker-Windows-${version}-Setup.${ext}"
   },
   "nsis": {
     "oneClick": false,
     "perMachine": false,
     "allowToChangeInstallationDirectory": true,
-    "deleteAppDataOnUninstall": false
+    "deleteAppDataOnUninstall": false,
+    "shortcutName": "Task Tracker"
   },
   "linux": {
     "target": [
       "AppImage"
     ],
-    "artifactName": "${productName}-Linux-${version}.${ext}"
+    "icon": "build/icons",
+    "artifactName": "Task-Tracker-Linux-${version}.${ext}"
   }
 }
