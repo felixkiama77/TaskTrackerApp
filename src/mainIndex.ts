@@ -354,7 +354,7 @@ function createAndPrintTask(event: Event): void {
     renderTask();
 }
 
-function updateCountdown(event: Event): void {
+function updateCountdown(): void {
     for (const task of manager.taskList) {
         const mainCD = document.getElementById("count-down-" + task.internalId);
         const tagCD = document.getElementById("tag-task-countdown-" + task.internalId);
@@ -587,7 +587,7 @@ function renderTask() {
 createButton.addEventListener("click", createAndPrintTask);
 tagMenuButton.addEventListener("click", openTagMenu);
 toggleTimeButton.addEventListener("click", toggleIncludeTime);
-const intervalID = setInterval(updateCountdown, 60000);  // 60000 is the mili seconds to have the event fire every minute.
+setInterval(updateCountdown, 60000);  // 60000 is the mili seconds to have the event fire every minute.
 
 
 
