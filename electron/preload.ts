@@ -15,9 +15,11 @@ const api: TaskTrackerApi = {
   testNotification: () => ipcRenderer.invoke(Channels.testNotification),
   getAppInfo: () => ipcRenderer.invoke(Channels.getAppInfo),
   openDataFolder: () => ipcRenderer.invoke(Channels.openDataFolder),
+  reportAudio: (report) => ipcRenderer.invoke(Channels.reportAudio, report),
   onSnapshot: (listener) => subscribe(Channels.snapshot, listener),
   onAlert: (listener) => subscribe(Channels.alert, listener),
   onNavigate: (listener) => subscribe(Channels.navigate, listener),
+  onWindowVisibility: (listener) => subscribe(Channels.windowVisibility, listener),
 }
 
 contextBridge.exposeInMainWorld('taskTracker', api)

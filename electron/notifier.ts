@@ -8,7 +8,7 @@ import type { NotificationRequest, Notifier } from './scheduler'
  */
 export function createElectronNotifier(options: {
   iconPath: string
-  isSilent: () => boolean
+  isSilent: (request: NotificationRequest) => boolean
   onClick: (request: NotificationRequest) => void
 }): Notifier {
   const active = new Set<Notification>()
@@ -24,7 +24,7 @@ export function createElectronNotifier(options: {
           title: request.title,
           body: request.body,
           icon: options.iconPath,
-          silent: options.isSilent(),
+          silent: options.isSilent(request),
         })
         const release = () => active.delete(notification)
         notification.on('click', () => {

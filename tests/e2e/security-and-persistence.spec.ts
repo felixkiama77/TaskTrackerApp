@@ -31,7 +31,9 @@ test('the page only sees the narrow taskTracker API (FR-26, Electron security)',
         'onAlert',
         'onNavigate',
         'onSnapshot',
+        'onWindowVisibility',
         'openDataFolder',
+        'reportAudio',
         'testNotification',
       ],
       ipcRenderer: 'undefined',
@@ -63,6 +65,13 @@ test('the page only sees the narrow taskTracker API (FR-26, Electron security)',
     )
     expect(rejected.every((r) => !r.ok)).toBe(true)
     expect((await page.evaluate(() => window.taskTracker.getSnapshot())).data.tasks).toEqual([])
+
+    // The audio report only accepts known notification kinds.
+    await expect(
+      page.evaluate(() =>
+        window.taskTracker.reportAudio({ customNotificationSounds: ['../../evil'] } as never),
+      ),
+    ).rejects.toThrow()
 
     // New windows and navigation away from the app are blocked.
     expect(await page.evaluate(() => window.open('https://example.com') === null)).toBe(true)

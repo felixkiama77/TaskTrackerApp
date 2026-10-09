@@ -2,6 +2,8 @@ import { formatLongDate } from '../domain/format'
 import { overdueOccurrences, type Occurrence } from '../domain/occurrences'
 import type { Command } from '../domain/schemas'
 import type { DispatchResult, TaskTrackerApi } from '../shared/api'
+import type { EffectCue } from './audio/catalog'
+import type { SoundPlayer } from './audio/player'
 import { clock } from './clock'
 import { chooseDialog, confirmDialog } from './components/dialog'
 import type { ToastOptions, Toaster } from './components/toast'
@@ -9,6 +11,17 @@ import { motionDelay } from './dom'
 import { state } from './state'
 import { openOccurrenceDetail } from './views/detail'
 import { openTaskEditor } from './views/editor'
+
+/** The sound effect for each kind of successful change (others are silent). */
+const EFFECT_FOR: Partial<Record<Command['type'], EffectCue>> = {
+  'task/create': 'task-created',
+  'occurrence/complete': 'task-completed',
+  'occurrence/uncomplete': 'task-undone',
+  'occurrence/restore': 'task-undone',
+  'task/delete': 'task-deleted',
+  'occurrence/skip': 'task-skipped',
+  'task/skipMissed': 'task-skipped',
+}
 
 /**
  * Every user action goes through here: it sends a validated command to the main process and gives
@@ -18,6 +31,7 @@ export class Actions {
   constructor(
     private readonly api: TaskTrackerApi,
     private readonly toaster: Toaster,
+    readonly sounds: SoundPlayer,
   ) {}
 
   now = () => clock.now()
@@ -40,6 +54,9 @@ export class Actions {
     }
     if (!result.ok && !options.quiet)
       this.toast({ tone: 'error', title: 'Something went wrong', body: result.error })
+    // Sound is an extra cue only; the toast or the changed screen always says what happened.
+    const cue = result.ok ? (result.changed ? EFFECT_FOR[command.type] : undefined) : 'error'
+    if (cue) this.sounds.playEffect(cue)
     return result
   }
 

@@ -7,6 +7,7 @@ import type { AppData } from '../src/domain/types'
 import {
   Channels,
   type AppInfo,
+  type AudioReport,
   type DispatchResult,
   type Snapshot,
   type StartupIssue,
@@ -29,7 +30,12 @@ export interface IpcDeps {
   testNotification(): TestNotificationResult
   appInfo(): AppInfo
   openDataFolder(): Promise<void>
+  setAudioReport(report: AudioReport): void
 }
+
+const AudioReportSchema = z.object({
+  customNotificationSounds: z.array(z.enum(['reminder', 'due', 'overdue', 'missed'])).max(4),
+})
 
 const LegacyRawSchema = z.object({
   tasks: z.string().max(5_000_000).nullable(),
@@ -100,4 +106,5 @@ export function registerIpc(deps: IpcDeps) {
   handle(Channels.testNotification, () => deps.testNotification())
   handle(Channels.getAppInfo, () => deps.appInfo())
   handle(Channels.openDataFolder, () => deps.openDataFolder())
+  handle(Channels.reportAudio, (_event, payload) => deps.setAudioReport(AudioReportSchema.parse(payload)))
 }

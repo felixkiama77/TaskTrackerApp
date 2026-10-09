@@ -67,9 +67,17 @@ export const CategoryNameSchema = z
   .min(1, 'Enter a category name.')
   .max(40, 'Keep category names under 40 characters.')
 
+const VolumeSchema = z.number().min(0).max(1)
+
 export const SettingsSchema = z.object({
   remindersEnabled: z.boolean().catch(DEFAULT_SETTINGS.remindersEnabled),
   playSound: z.boolean().catch(DEFAULT_SETTINGS.playSound),
+  notificationVolume: VolumeSchema.catch(DEFAULT_SETTINGS.notificationVolume),
+  soundEffects: z.boolean().catch(DEFAULT_SETTINGS.soundEffects),
+  effectsVolume: VolumeSchema.catch(DEFAULT_SETTINGS.effectsVolume),
+  music: z.boolean().catch(DEFAULT_SETTINGS.music),
+  musicVolume: VolumeSchema.catch(DEFAULT_SETTINGS.musicVolume),
+  musicShuffle: z.boolean().catch(DEFAULT_SETTINGS.musicShuffle),
   dateOnlyReminderTime: LocalTimeSchema.catch(DEFAULT_SETTINGS.dateOnlyReminderTime),
   closeBehavior: z.enum(['tray', 'quit']).catch(DEFAULT_SETTINGS.closeBehavior),
   launchAtLogin: z.boolean().catch(DEFAULT_SETTINGS.launchAtLogin),
@@ -81,6 +89,12 @@ export const SettingsPatchSchema = z
   .object({
     remindersEnabled: z.boolean(),
     playSound: z.boolean(),
+    notificationVolume: VolumeSchema,
+    soundEffects: z.boolean(),
+    effectsVolume: VolumeSchema,
+    music: z.boolean(),
+    musicVolume: VolumeSchema,
+    musicShuffle: z.boolean(),
     dateOnlyReminderTime: LocalTimeSchema,
     closeBehavior: z.enum(['tray', 'quit']),
     launchAtLogin: z.boolean(),

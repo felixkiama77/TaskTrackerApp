@@ -13,6 +13,10 @@ import type { AlertMessage } from '../src/shared/api'
 export interface NotificationRequest {
   title: string
   body: string
+  /** Which sound applies; informational notices have none. */
+  kind?: 'reminder' | 'due' | 'overdue' | 'missed'
+  /** Always silent (e.g. purely informational notices). */
+  silent?: boolean
   taskId?: string
   occurrenceKey?: string
 }
@@ -106,7 +110,12 @@ export class ReminderScheduler {
           continue
         }
         const copy = alertCopy(event)
-        this.deps.notifier.show({ ...copy, taskId: event.taskId, occurrenceKey: event.occurrenceKey })
+        this.deps.notifier.show({
+          ...copy,
+          kind: event.kind,
+          taskId: event.taskId,
+          occurrenceKey: event.occurrenceKey,
+        })
         this.deps.onAlert({
           kind: event.kind,
           ...copy,
@@ -116,7 +125,7 @@ export class ReminderScheduler {
       }
       if (missed.length > 0) {
         const copy = missedAlertsCopy(missed.length)
-        this.deps.notifier.show(copy)
+        this.deps.notifier.show({ ...copy, kind: 'missed' })
         this.deps.onAlert({ kind: 'missed', ...copy })
       }
     }

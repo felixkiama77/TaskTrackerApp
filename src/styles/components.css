@@ -1019,3 +1019,22 @@ input.switch {
     transform: scale(0.96);
   }
 }
+
+/* ---------- Volume slider ---------- */
+.range {
+  width: 160px;
+  margin: 0;
+  accent-color: var(--brand-blue);
+  cursor: pointer;
+}
+
+.range:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.volume-value {
+  min-width: 3.5ch;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

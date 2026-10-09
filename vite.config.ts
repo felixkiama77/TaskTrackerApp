@@ -44,6 +44,10 @@ export default defineConfig({
   base: './',
   // A fixed port keeps the dev page's origin stable; data saved by the old version lives under it.
   server: { port: DEV_PORT, strictPort: true },
+  build: {
+    // Never inline audio as data: URIs; the security policy only allows the app's own files.
+    assetsInlineLimit: (file: string) => (/\.(mp3|ogg|wav|m4a)$/i.test(file) ? false : undefined),
+  },
   plugins: [
     contentSecurityPolicy(),
     electron({

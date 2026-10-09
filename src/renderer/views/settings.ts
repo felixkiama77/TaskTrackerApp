@@ -2,9 +2,10 @@ import { localeWeekStart } from '../../domain/dates'
 import type { Settings } from '../../domain/types'
 import type { AppInfo } from '../../shared/api'
 import type { Actions } from '../actions'
+import { EFFECT_CUES, NOTIFICATION_CUES, type NotificationCue } from '../audio/catalog'
 import { brandMark } from '../components/parts'
 import { h, icon, mount, type Child } from '../dom'
-import { BellRing, FolderOpen } from '../icons'
+import { BellRing, FolderOpen, SkipForward } from '../icons'
 import { state } from '../state'
 import type { ViewContent } from './shell'
 
@@ -63,6 +64,148 @@ function setting(label: string, hint: string | null, control: Child, labelFor?: 
   )
 }
 
+const percent = (volume: number) => `${Math.round(volume * 100)}%`
+
+/** A 0-100% volume slider; the value is saved when the user lets go. */
+function volumeSetting(options: {
+  label: string
+  value: number
+  disabled: boolean
+  focusKey: string
+  onCommit: (volume: number) => void
+}): HTMLElement {
+  const id = `setting-${options.focusKey}`
+  const output = h('output', { for: id, class: 'setting__hint volume-value' }, percent(options.value))
+  const input = h('input', {
+    id,
+    type: 'range',
+    class: 'range',
+    min: 0,
+    max: 100,
+    step: 5,
+    value: String(Math.round(options.value * 100)),
+    disabled: options.disabled,
+    'aria-valuetext': percent(options.value),
+    dataset: { focusKey: options.focusKey },
+    onInput: (e: Event) => {
+      const volume = Number((e.target as HTMLInputElement).value) / 100
+      output.textContent = percent(volume)
+      input.setAttribute('aria-valuetext', percent(volume))
+    },
+    onChange: (e: Event) => options.onCommit(Number((e.target as HTMLInputElement).value) / 100),
+  })
+  return setting(options.label, null, [input, output], id)
+}
+
+const NOTIFICATION_LABELS: Record<NotificationCue, string> = {
+  reminder: 'reminders',
+  due: 'due-time alarms',
+  overdue: 'overdue alerts',
+  missed: 'missed-reminder summaries',
+}
+
+/** Sound effects, custom notification sounds and background music (files in src/assets/audio). */
+function soundSection(actions: Actions): HTMLElement {
+  const settings = state.data.settings
+  const { sounds } = actions
+  const { catalog } = sounds
+  const effectCount = EFFECT_CUES.filter((cue) => catalog.effects[cue]).length
+  const customNotifications = NOTIFICATION_CUES.filter((cue) => catalog.notifications[cue])
+  const tracks = catalog.music.length
+  const playing = sounds.nowPlaying()
+
+  return h(
+    'section',
+    { class: 'settings-section', 'aria-labelledby': 'settings-sound' },
+    h('h2', { id: 'settings-sound' }, 'Sound'),
+    switchRow({
+      label: 'Sound effects',
+      hint:
+        effectCount === 0
+          ? 'No sound effects have been added yet.'
+          : `Short sounds when you create, complete, undo, skip or delete tasks (${effectCount} of ${EFFECT_CUES.length} added).`,
+      checked: settings.soundEffects && effectCount > 0,
+      disabled: effectCount === 0,
+      focusKey: 'sound-effects',
+      onChange: (checked) => save(actions, { soundEffects: checked }),
+    }),
+    volumeSetting({
+      label: 'Effects volume',
+      value: settings.effectsVolume,
+      disabled: effectCount === 0 || !settings.soundEffects,
+      focusKey: 'effects-volume',
+      onCommit: (volume) => {
+        save(actions, { effectsVolume: volume })
+        // A quick preview at the new level.
+        window.setTimeout(() => sounds.playEffect('task-completed'), 50)
+      },
+    }),
+    volumeSetting({
+      label: 'Notification sound volume',
+      value: settings.notificationVolume,
+      disabled: customNotifications.length === 0 || !settings.playSound,
+      focusKey: 'notification-volume',
+      onCommit: (volume) => {
+        save(actions, { notificationVolume: volume })
+        window.setTimeout(() => sounds.playNotification(customNotifications[0] ?? 'reminder'), 50)
+      },
+    }),
+    h(
+      'p',
+      { class: 'setting__hint' },
+      customNotifications.length === 0
+        ? 'No custom notification sounds have been added yet, so notifications use the Windows sound.'
+        : `Custom sounds play for ${customNotifications.map((c) => NOTIFICATION_LABELS[c]).join(', ')}${
+            customNotifications.length < NOTIFICATION_CUES.length
+              ? '; other notifications use the Windows sound'
+              : ''
+          }.`,
+    ),
+    switchRow({
+      label: 'Background music',
+      hint:
+        tracks === 0
+          ? 'No music has been added yet.'
+          : `${tracks === 1 ? '1 track' : `${tracks} tracks`} in rotation. Pauses while the window is hidden.`,
+      checked: settings.music && tracks > 0,
+      disabled: tracks === 0,
+      focusKey: 'music',
+      onChange: (checked) => save(actions, { music: checked }),
+    }),
+    volumeSetting({
+      label: 'Music volume',
+      value: settings.musicVolume,
+      disabled: tracks === 0 || !settings.music,
+      focusKey: 'music-volume',
+      onCommit: (volume) => save(actions, { musicVolume: volume }),
+    }),
+    switchRow({
+      label: 'Shuffle',
+      hint: 'Play the tracks in a random order instead of by file name.',
+      checked: settings.musicShuffle,
+      disabled: tracks < 2 || !settings.music,
+      focusKey: 'music-shuffle',
+      onChange: (checked) => save(actions, { musicShuffle: checked }),
+    }),
+    playing &&
+      setting(
+        'Now playing',
+        playing.title,
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'btn btn--sm',
+            dataset: { focusKey: 'next-track' },
+            onClick: () => sounds.nextTrack(),
+          },
+          icon(SkipForward, 14),
+          'Next track',
+        ),
+      ),
+  )
+}
+
 export function settingsView(actions: Actions, info: AppInfo | null): ViewContent {
   const settings = state.data.settings
   const testResult = h('span', { class: 'setting__hint', role: 'status' })
@@ -81,7 +224,7 @@ export function settingsView(actions: Actions, info: AppInfo | null): ViewConten
     }),
     switchRow({
       label: 'Play a sound',
-      hint: 'Uses your system’s notification sound.',
+      hint: 'Uses your custom notification sounds where added, otherwise the system sound.',
       checked: settings.playSound,
       focusKey: 'play-sound',
       onChange: (checked) => save(actions, { playSound: checked }),
@@ -117,6 +260,7 @@ export function settingsView(actions: Actions, info: AppInfo | null): ViewConten
             onClick: () =>
               void actions.testNotification().then((result) => {
                 mount(testResult, result.ok ? 'Sent.' : result.error)
+                if (result.ok) actions.sounds.playNotification('reminder')
               }),
           },
           icon(BellRing, 14),
@@ -269,6 +413,6 @@ export function settingsView(actions: Actions, info: AppInfo | null): ViewConten
   return {
     title: 'Settings',
     summary: 'Changes are saved automatically.',
-    body: [notifications, calendar, windowSection, data, about],
+    body: [notifications, soundSection(actions), calendar, windowSection, data, about],
   }
 }

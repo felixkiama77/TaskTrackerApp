@@ -47,6 +47,11 @@ export interface AppInfo {
 
 export type TestNotificationResult = { ok: true } | { ok: false; error: string }
 
+/** Which notification kinds have a custom sound in this build (their system sound is then muted). */
+export interface AudioReport {
+  customNotificationSounds: ('reminder' | 'due' | 'overdue' | 'missed')[]
+}
+
 export interface TaskTrackerApi {
   getSnapshot(): Promise<Snapshot>
   dispatch(command: Command): Promise<DispatchResult>
@@ -54,9 +59,12 @@ export interface TaskTrackerApi {
   testNotification(): Promise<TestNotificationResult>
   getAppInfo(): Promise<AppInfo>
   openDataFolder(): Promise<void>
+  reportAudio(report: AudioReport): Promise<void>
   onSnapshot(listener: (snapshot: Snapshot) => void): () => void
   onAlert(listener: (alert: AlertMessage) => void): () => void
   onNavigate(listener: (target: NavigateMessage) => void): () => void
+  /** Whether the window is actually on screen (Chromium still reports "visible" when hidden to the tray). */
+  onWindowVisibility(listener: (shown: boolean) => void): () => void
 }
 
 /** IPC channel names, kept in one place so main and preload cannot drift apart. */
@@ -67,9 +75,11 @@ export const Channels = {
   testNotification: 'tt:test-notification',
   getAppInfo: 'tt:get-app-info',
   openDataFolder: 'tt:open-data-folder',
+  reportAudio: 'tt:report-audio',
   snapshot: 'tt:snapshot',
   alert: 'tt:alert',
   navigate: 'tt:navigate',
+  windowVisibility: 'tt:window-visibility',
 } as const
 
 declare global {

@@ -2,6 +2,8 @@ import { localDateOf, startOfMonth } from '../domain/dates'
 import { viewCounts } from '../domain/views'
 import type { AlertMessage, AppInfo, TaskTrackerApi } from '../shared/api'
 import { Actions } from './actions'
+import { createSoundPlayer } from './audio'
+import { NOTIFICATION_CUES } from './audio/catalog'
 import { clock, startMinuteTicker } from './clock'
 import { EdgeAlert } from './components/edgeAlert'
 import { brandMark } from './components/parts'
@@ -134,7 +136,12 @@ export async function startApp(root: HTMLElement, api: TaskTrackerApi) {
   root.replaceChildren(appEl)
   document.body.append(toastRegion, edgeEl)
 
-  const actions = new Actions(api, new Toaster(toastRegion))
+  let windowShown = true
+  const sounds = createSoundPlayer(
+    () => state.data.settings,
+    () => windowShown,
+  )
+  const actions = new Actions(api, new Toaster(toastRegion), sounds)
   const edgeAlert = new EdgeAlert(edgeEl)
 
   // Show the logo only if loading is actually slow (design spec §7: no artificial splash).
@@ -194,12 +201,30 @@ export async function startApp(root: HTMLElement, api: TaskTrackerApi) {
   }
 
   state.subscribe(render)
+  // Background music follows the settings and pauses while the window is hidden.
+  state.subscribe(() => sounds.syncMusic())
+  document.addEventListener('visibilitychange', () => sounds.syncMusic())
+  api.onWindowVisibility((shown) => {
+    windowShown = shown
+    sounds.syncMusic()
+  })
+  sounds.onChange(() => {
+    if (state.ui.route.name === 'settings') state.refresh()
+  })
+  sounds.syncMusic()
+  // Tell the main process which notification kinds have custom sounds, so their system sound is muted.
+  void api
+    .reportAudio({
+      customNotificationSounds: NOTIFICATION_CUES.filter((cue) => sounds.hasNotificationSound(cue)),
+    })
+    .catch((error: unknown) => console.warn('[audio] Could not report sounds', error))
   render()
   appEl.dataset.ready = 'true'
 
   api.onSnapshot((next) => state.setData(next.data))
   api.onAlert((alert: AlertMessage) => {
     edgeAlert.flash(alert.kind === 'overdue' ? 'overdue' : 'reminder')
+    sounds.playNotification(alert.kind)
     const { taskId, occurrenceKey } = alert
     actions.toast({
       tone: alert.kind === 'overdue' ? 'overdue' : 'reminder',

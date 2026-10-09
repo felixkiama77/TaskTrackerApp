@@ -120,7 +120,11 @@ describe('ReminderScheduler (FR-23 – FR-26)', () => {
     h.state.now = at('2026-10-08', '21:00')
     await h.scheduler.check()
     expect(h.shown).toEqual([
-      { title: 'Missed reminders', body: '3 reminders were missed while Task Tracker wasn’t running.' },
+      {
+        title: 'Missed reminders',
+        body: '3 reminders were missed while Task Tracker wasn’t running.',
+        kind: 'missed',
+      },
     ])
     expect(h.inApp.map((m) => m.kind)).toEqual(['missed'])
     await h.scheduler.check()

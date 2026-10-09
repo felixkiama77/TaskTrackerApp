@@ -74,6 +74,8 @@ let notifier: Notifier | null = null
 let quitting = false
 let readyToExit = false
 let trayHintShown = false
+/** Notification kinds whose sound the window plays itself (see AudioReport). */
+let customNotificationSounds = new Set<string>()
 
 /** True only for the app's own page: the dev server in development, dist/index.html when built. */
 function isAppUrl(url: string): boolean {
@@ -118,6 +120,8 @@ function createWindow() {
       nodeIntegration: false,
       webviewTag: false,
       spellcheck: true,
+      // Notification sounds must play while the window sits hidden in the tray.
+      autoplayPolicy: 'no-user-gesture-required',
     },
   })
 
@@ -135,9 +139,14 @@ function createWindow() {
       notifier?.show({
         title: 'Task Tracker is still running',
         body: 'Reminders will keep working. Use the tray icon to open or quit Task Tracker.',
+        silent: true,
       })
     }
   })
+
+  // Tell the page when it is really on screen; Chromium keeps reporting "visible" for a hidden window.
+  const reportShown = () => send(Channels.windowVisibility, Boolean(win?.isVisible() && !win.isMinimized()))
+  for (const event of ['show', 'hide', 'minimize', 'restore'] as const) win.on(event as 'show', reportShown)
 
   win.on('closed', () => {
     win = null
@@ -223,7 +232,10 @@ async function start() {
       ? recordingNotifier()
       : createElectronNotifier({
           iconPath,
-          isSilent: () => !openedStore.get().settings.playSound,
+          isSilent: (request) =>
+            request.silent === true ||
+            !openedStore.get().settings.playSound ||
+            (request.kind !== undefined && customNotificationSounds.has(request.kind)),
           onClick: (request) => {
             showWindow()
             if (request.taskId && request.occurrenceKey) {
@@ -265,6 +277,7 @@ async function start() {
       activeNotifier.show({
         title: 'Test notification',
         body: 'Notifications from Task Tracker are working.',
+        kind: 'reminder',
       })
         ? { ok: true }
         : {
@@ -280,6 +293,9 @@ async function start() {
       notificationsSupported: Notification.isSupported(),
       isPackaged: app.isPackaged,
     }),
+    setAudioReport: (report) => {
+      customNotificationSounds = new Set(report.customNotificationSounds)
+    },
     openDataFolder: async () => {
       const error = await shell.openPath(app.getPath('userData'))
       if (error) throw new Error(error)

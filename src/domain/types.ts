@@ -80,7 +80,19 @@ export type CloseBehavior = 'tray' | 'quit'
 
 export interface Settings {
   remindersEnabled: boolean
+  /** Play a sound with notifications: the custom sound if one was added, otherwise the system sound. */
   playSound: boolean
+  /** 0-1. Volume of custom notification sounds (the system sound uses the system volume). */
+  notificationVolume: number
+  /** Short sounds for actions such as completing or deleting a task. */
+  soundEffects: boolean
+  /** 0-1 */
+  effectsVolume: number
+  /** Background music, played in rotation while the window is open. */
+  music: boolean
+  /** 0-1 */
+  musicVolume: number
+  musicShuffle: boolean
   /** Time reminders are measured from for tasks without a due time. */
   dateOnlyReminderTime: LocalTime
   closeBehavior: CloseBehavior
@@ -110,6 +122,12 @@ export interface AppData {
 export const DEFAULT_SETTINGS: Settings = {
   remindersEnabled: true,
   playSound: true,
+  notificationVolume: 0.8,
+  soundEffects: true,
+  effectsVolume: 0.6,
+  music: false,
+  musicVolume: 0.3,
+  musicShuffle: true,
   dateOnlyReminderTime: '09:00',
   closeBehavior: 'tray',
   launchAtLogin: false,
