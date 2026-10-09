@@ -5,7 +5,10 @@ import path from 'node:path'
 
 test('packaged-style build launches and shows the main window', async () => {
   const userData = mkdtempSync(path.join(tmpdir(), 'tasktracker-e2e-'))
-  const app = await electron.launch({ args: ['.'], env: { ...process.env, TASK_TRACKER_USER_DATA: userData } })
+  const app = await electron.launch({
+    args: ['.'],
+    env: { ...process.env, TASK_TRACKER_USER_DATA: userData },
+  })
   try {
     const window = await app.firstWindow()
     await window.waitForLoadState('domcontentloaded')

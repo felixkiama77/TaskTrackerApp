@@ -3,7 +3,9 @@ import tseslint from 'typescript-eslint'
 import globals from 'globals'
 
 export default tseslint.config(
-  { ignores: ['dist/', 'dist-electron/', 'release/', 'test-results/', 'playwright-report/', 'node_modules/'] },
+  {
+    ignores: ['dist/', 'dist-electron/', 'release/', 'test-results/', 'playwright-report/', 'node_modules/'],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {
@@ -15,5 +17,5 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
-  { files: ['**/*.js'], ...tseslint.configs.disableTypeChecked },
+  { files: ['**/*.js', '**/*.mjs'], ...tseslint.configs.disableTypeChecked },
 )

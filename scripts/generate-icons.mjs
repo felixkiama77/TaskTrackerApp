@@ -10,7 +10,9 @@ const masterSvg = readFileSync(path.join(brandDir, 'task-tracker-mark.svg'), 'ut
 // Small sizes use pixel-aligned variants so the T stays crisp instead of blurring between pixels.
 const HINTED_SIZES = [16, 20, 24, 32]
 const svgFor = (size) =>
-  HINTED_SIZES.includes(size) ? readFileSync(path.join(brandDir, `task-tracker-mark-${size}.svg`), 'utf8') : masterSvg
+  HINTED_SIZES.includes(size)
+    ? readFileSync(path.join(brandDir, `task-tracker-mark-${size}.svg`), 'utf8')
+    : masterSvg
 
 const PNG_SIZES = [16, 20, 24, 32, 40, 48, 64, 128, 256, 512, 1024]
 const ICO_SIZES = [16, 20, 24, 32, 40, 48, 64, 128, 256]

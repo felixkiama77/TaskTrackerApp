@@ -15,7 +15,7 @@ Decided with the product owner on 2026-10-08.
 | 3 | Multiple times per week | User selects **specific weekdays** (one or more). One selected day = weekly. If the start date is not a selected weekday, the first occurrence is the next selected weekday on or after it. |
 | 4 | Monthly on 29th–31st | **Clamp to the month's last day** (Jan 31 → Feb 28/29 → Mar 31). The original anchor day is kept for later months. |
 | 5 | "Next 3 days" | **Tomorrow through 3 days from today** (excludes today). |
-| 6 | Week start | Follows the **OS locale** (`Intl.Locale` week info, Monday fallback); overridable in Settings. |
+| 6 | Week start | Follows the **OS locale** (`Intl.Locale` week info, Monday fallback); overridable in Settings. The product owner is in US Pacific time with an en-US locale, so weeks start on Sunday by default. |
 | 7 | Recurring edits | **"Only this occurrence"** or **"This and future"**. "This and future" splits the series at the selected occurrence so earlier history stays with the old rule. Archive records are never changed. |
 | 8 | Recurring deletion | **"Only this occurrence"** (recorded as skipped) or **"Entire series"** (all remaining occurrences). Archive records are always kept. |
 | 9 | Missed reminders while closed | On next launch, **one summary notification** ("N reminders were missed…"); stale reminders are not replayed individually. Anything now overdue gets the normal overdue cue. |
@@ -45,3 +45,12 @@ Decided with the product owner on 2026-10-08.
 | Window close | Hides to the system tray; reminders keep running; Quit from the tray menu | Reminders only fire while the process runs. Configurable in Settings, with optional "Start at login" (off by default). |
 | Date inputs | Native `<input type="date">` / `<input type="time">` replace flatpickr | Produces local date strings (avoids the UTC parsing trap in FR-27), keyboard accessible, no unmaintained dependency. |
 | Notifications | Electron's built-in `Notification` API in the main process | Per FR-22; no extra package. |
+
+## Additional rules set during implementation
+
+- **Time zone:** all date logic uses the computer's local zone (FR-27). Unit tests pin `America/Los_Angeles`, the product owner's zone, so daylight-saving cases (Mar 8 / Nov 1, 2026) are exercised deterministically.
+- **Reminders for tasks without a due time** are measured from the "date-only reminder time" setting (default 9:00 AM) on the due date.
+- **Overdue alerts** (OS notification + red edge pulse) fire once per occurrence, only for tasks that have at least one reminder: 15 minutes after a timed deadline (so they don't collide with the due-time alarm), or the morning after a date-only due date at the date-only reminder time (so nobody is woken at midnight).
+- **"This and future" with a repeat count:** the count describes the whole series, so the new part of a split series gets the remaining occurrences.
+- **Legacy tasks that were already complete** are imported into the archive with classification "unknown", because the old app never recorded when they were completed.
+- **Dependencies:** date-fns was evaluated and removed — calendar arithmetic is done on `YYYY-MM-DD` values via UTC math (immune to DST) and formatting uses the built-in `Intl` APIs.

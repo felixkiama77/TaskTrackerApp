@@ -5,5 +5,7 @@ export default defineConfig({
   test: {
     include: ['tests/unit/**/*.test.ts'],
     environment: 'node',
+    // The user's zone (US Pacific). Fixed so date tests are deterministic; its 2026 DST changes are Mar 8 and Nov 1.
+    env: { TZ: 'America/Los_Angeles' },
   },
 })
