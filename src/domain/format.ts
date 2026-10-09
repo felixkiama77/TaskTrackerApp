@@ -95,6 +95,11 @@ export function formatRelativeDate(date: LocalDate, now: number, locale?: string
   }).format(new Date(year, month - 1, day))
 }
 
+/** Lower-cases "Today"/"Tomorrow"/"Yesterday" for use mid-sentence ("Due today"). */
+export function inSentence(label: string): string {
+  return label === 'Today' || label === 'Tomorrow' || label === 'Yesterday' ? label.toLowerCase() : label
+}
+
 /** Due label such as "Today · 5:00 PM" or "Thu, Oct 9". */
 export function formatDue(date: LocalDate, time: LocalTime | null, now: number, locale?: string): string {
   const day = formatRelativeDate(date, now, locale)

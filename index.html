@@ -1,62 +1,13 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
   <head>
-     <link rel="stylesheet" href="/src/style.css">
-    <title id="app-title">TypeScript Greeter</title>
-    <meta name="Description" content="The web app for tracking all of your importnat task!">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Task Tracker — track tasks, repeats, reminders and completed work." />
+    <title>Task Tracker</title>
   </head>
   <body>
-    <h1 style = "text-align:center;">Task Tracker</h1>
-    <section>
-        <section class ="input-sections" id="create_task_section">
-             <h3 style="text-align: center; margin-bottom: 5px;">
-                    Enter New Tasks
-            </h3>
-            <form class = "input-forms" style = "text-align: center;">
-                <div class ="sub-sections">
-                    <div class="tag-input-divs"> 
-                        <label for="task-name" class="sub-labels">Name of the Task</label>
-                        <input id="task-name" name="title" type="text">
-                    </div>
-                </div>
-                <div class="sub-sections">
-                    <div>
-                        <label for="flatpicker-div" class="sub-labels">Due Date/Time</label>
-                    </div>
-                    <div class ="tag-input-divs" id="flatpicker-div">
-                        <button id="toggle-time-button">Include Due Time: False</button>
-                    </div>
-                    <div class="tag-input-divs">
-                        <input type="text" id="task-due-time" placeholder="Select Time the Task is Due">
-                    </div>
-                </div>
-                <div class="sub-sections">
-                    <div class="tag-input-divs">
-                        <label for="task-priority" class="sub-labels">Priority Level</label>
-                        <select id="task-priority" name="priority">
-                            <option value="Low">Low</option>
-                            <option value="Normal">Normal</option>
-                            <option value="High">High</option>
-                        </select>
-                    </div>
-                </div>
-                <button id="create-task" type="submit">Add Task</button>
-            </form>
-        </section>
-        <section class ="input-sections" id="create_tags_section">       
-            <h3 style="text-align: center; margin-bottom: 5px;">
-                    Create Task Tag
-            </h3>
-            <div style="display: flex; justify-content: center;">
-                <button id="create-tag-button" type="button">
-                    Open Create A Tag Menu
-                </button>
-            </div>
-            <div id="create-tag" style ="text-align: center;"></div>
-        </section>
-        <h3 style ="text-align: center;"><output id="task-list"></output></h3>
-        <h3 style ="text-align: center;"><output id="tag-list"></output></h3>
-    </section>
-    <script src="/src/mainIndex.ts" type="module"></script>
+    <div id="app"></div>
+    <script type="module" src="/src/renderer/main.ts"></script>
   </body>
 </html>

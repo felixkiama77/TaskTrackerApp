@@ -1,0 +1,111 @@
+/*
+ * Design tokens. Colour values come from docs/specs/TASK_TRACKER_DESIGN_SPEC_FOR_CLAUDE.md §3 and are
+ * the only place hex colours appear. Components use the semantic roles below, never raw values.
+ */
+:root {
+  /* Brand palette */
+  --brand-blue: #2563eb;
+  --brand-blue-hover: #1d4ed8;
+  --brand-blue-bright: #3b82f6;
+  --charcoal: #171a21;
+  --white: #ffffff;
+  --soft-gray: #e5e7eb;
+  --muted-gray: #6b7280;
+  --surface-light: #f8fafc;
+
+  /* Status colours: semantic exceptions reserved for task state, never decoration */
+  --status-overdue: #dc2626;
+  --status-today: #16a34a;
+  --status-future: var(--brand-blue);
+  --status-reminder: var(--brand-blue-bright);
+
+  /* Light theme roles */
+  --color-canvas: var(--surface-light);
+  --color-surface: var(--white);
+  --color-surface-hover: color-mix(in srgb, var(--soft-gray) 35%, var(--white));
+  --color-surface-sunken: color-mix(in srgb, var(--soft-gray) 30%, var(--surface-light));
+  --color-text: var(--charcoal);
+  --color-text-secondary: var(--muted-gray);
+  --color-text-on-brand: var(--white);
+  --color-border: var(--soft-gray);
+  --color-border-strong: color-mix(in srgb, var(--muted-gray) 40%, var(--soft-gray));
+  --color-primary: var(--brand-blue);
+  --color-primary-hover: var(--brand-blue-hover);
+  --color-selected-bg: color-mix(in srgb, var(--brand-blue) 9%, var(--white));
+  --color-selected-text: var(--brand-blue);
+  --color-focus: var(--brand-blue-bright);
+  --color-danger: var(--status-overdue);
+  --color-danger-bg: color-mix(in srgb, var(--status-overdue) 8%, var(--white));
+  --color-backdrop: color-mix(in srgb, var(--charcoal) 40%, transparent);
+
+  /* Status tints for chips, calendar items and badges (text on them stays charcoal) */
+  --tint-overdue: color-mix(in srgb, var(--status-overdue) 9%, var(--white));
+  --tint-today: color-mix(in srgb, var(--status-today) 10%, var(--white));
+  --tint-future: color-mix(in srgb, var(--brand-blue) 8%, var(--white));
+  --tint-reminder: color-mix(in srgb, var(--brand-blue-bright) 10%, var(--white));
+  --tint-neutral: color-mix(in srgb, var(--soft-gray) 55%, var(--white));
+  /* Darker green for green text so it meets 4.5:1 on white (the status green is only used for fills and icons) */
+  --text-today: color-mix(in srgb, var(--status-today) 72%, var(--charcoal));
+
+  /* Typography */
+  --font-sans: 'Inter Variable', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --text-xs: 0.75rem; /* 12px */
+  --text-sm: 0.8125rem; /* 13px */
+  --text-base: 0.875rem; /* 14px */
+  --text-md: 1rem; /* 16px */
+  --text-lg: 1.25rem; /* 20px */
+  --text-xl: 1.5rem; /* 24px */
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* Spacing (4px scale) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Shape */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+  --shadow-raised: 0 1px 2px color-mix(in srgb, var(--charcoal) 6%, transparent);
+  --shadow-overlay:
+    0 16px 40px color-mix(in srgb, var(--charcoal) 16%, transparent),
+    0 2px 6px color-mix(in srgb, var(--charcoal) 8%, transparent);
+
+  /* Sizing */
+  --control-height: 36px;
+  --control-height-sm: 28px;
+  --sidebar-width: 244px;
+  --content-max-width: 920px;
+
+  /* Motion (design spec §7) */
+  --duration-hover: 140ms;
+  --duration-menu: 160ms;
+  --duration-dialog: 180ms;
+  --duration-check: 150ms;
+  --duration-exit: 200ms;
+  --duration-view: 140ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --edge-alert-width: 3px;
+  --edge-alert-duration: 1200ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-hover: 0ms;
+    --duration-menu: 0ms;
+    --duration-dialog: 0ms;
+    --duration-check: 0ms;
+    --duration-exit: 0ms;
+    --duration-view: 0ms;
+  }
+}

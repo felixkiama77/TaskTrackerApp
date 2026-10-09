@@ -77,6 +77,14 @@ export function applyCommand(data: AppData, command: Command, ctx: CommandContex
       touch(task, ctx.now)
       return result('Occurrence skipped.')
     }
+    case 'occurrence/restore': {
+      // Undo for a skipped (or individually deleted) occurrence.
+      const task = requireTask(next, command.taskId)
+      if (task.exceptions[command.key] !== 'skipped') return result('Nothing to restore.', false)
+      delete task.exceptions[command.key]
+      touch(task, ctx.now)
+      return result('Occurrence restored.')
+    }
     case 'category/create': {
       const name = command.name.trim()
       assertUniqueCategoryName(next, name, null)

@@ -156,6 +156,7 @@ export const CommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('occurrence/complete'), taskId: IdSchema, key: LocalDateSchema }),
   z.object({ type: z.literal('occurrence/uncomplete'), taskId: IdSchema, key: LocalDateSchema }),
   z.object({ type: z.literal('occurrence/skip'), taskId: IdSchema, key: LocalDateSchema }),
+  z.object({ type: z.literal('occurrence/restore'), taskId: IdSchema, key: LocalDateSchema }),
   z.object({ type: z.literal('category/create'), name: CategoryNameSchema }),
   z.object({ type: z.literal('category/rename'), categoryId: IdSchema, name: CategoryNameSchema }),
   z.object({ type: z.literal('category/delete'), categoryId: IdSchema }),
