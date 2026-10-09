@@ -63,3 +63,10 @@ Decided with the product owner on 2026-10-08.
 - **Background music** is off by default, shuffles by default (no track twice in a row), pauses while the window is hidden or minimized, and dips while other sounds play.
 - **Sound is never the only cue:** every event also has visible text (toast, notification or changed screen).
 - **Files are only deleted when their sound is removed or replaced.** The app never sweeps the sounds folder for unreferenced files, so a damaged data file can't cause sound files to be deleted.
+
+## Release and security (2026-10-08)
+
+- **Version 0.1.0** is the first preview build of the new app; the installer is `Task-Tracker-Windows-0.1.0-Setup.exe`. It is not code-signed (that needs a paid certificate), so Windows SmartScreen will warn on first run.
+- **Limits:** up to 2,000 tasks and 200 categories, so the app stays responsive and the data file stays a reasonable size.
+- **Installed builds are locked down** with Electron fuses (no running as plain Node, no `NODE_OPTIONS`, no debugger flags, integrity-checked archive only). Development and test switches (dev server URL, fake clock, recorded notifications, scripted file picks) only work when running from source. The data-folder override (`TASK_TRACKER_USER_DATA`) is still honoured by installed builds on purpose, so the packaged app can be checked without touching real data.
+- **Importing the old version's tasks** happens automatically, but only where that data lives: the old app only ever ran in development, so its tasks sit in the development page's storage (`localhost:5173`). Running `npm run dev` once imports them into `%APPDATA%\tasktracker`; the installed app then sees them too. A packaged-only install starts empty.
