@@ -1,24 +1,23 @@
-import { ipcRenderer, contextBridge } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { Channels, type TaskTrackerApi } from '../src/shared/api'
 
-// --------- Expose some API to the Renderer process ---------
-contextBridge.exposeInMainWorld('ipcRenderer', {
-  on(...args: Parameters<typeof ipcRenderer.on>) {
-    const [channel, listener] = args
-    return ipcRenderer.on(channel, (event, ...args) => listener(event, ...args))
-  },
-  off(...args: Parameters<typeof ipcRenderer.off>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.off(channel, ...omit)
-  },
-  send(...args: Parameters<typeof ipcRenderer.send>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.send(channel, ...omit)
-  },
-  invoke(...args: Parameters<typeof ipcRenderer.invoke>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.invoke(channel, ...omit)
-  },
+// Exposes a fixed, typed API to the page. Raw ipcRenderer and Node APIs are never exposed.
+function subscribe<T>(channel: string, listener: (value: T) => void): () => void {
+  const wrapped = (_event: IpcRendererEvent, value: T) => listener(value)
+  ipcRenderer.on(channel, wrapped)
+  return () => ipcRenderer.off(channel, wrapped)
+}
 
-  // You can expose other APTs you need here.
-  // ...
-})
+const api: TaskTrackerApi = {
+  getSnapshot: () => ipcRenderer.invoke(Channels.getSnapshot),
+  dispatch: (command) => ipcRenderer.invoke(Channels.dispatch, command),
+  importLegacy: (raw) => ipcRenderer.invoke(Channels.importLegacy, raw),
+  testNotification: () => ipcRenderer.invoke(Channels.testNotification),
+  getAppInfo: () => ipcRenderer.invoke(Channels.getAppInfo),
+  openDataFolder: () => ipcRenderer.invoke(Channels.openDataFolder),
+  onSnapshot: (listener) => subscribe(Channels.snapshot, listener),
+  onAlert: (listener) => subscribe(Channels.alert, listener),
+  onNavigate: (listener) => subscribe(Channels.navigate, listener),
+}
+
+contextBridge.exposeInMainWorld('taskTracker', api)
