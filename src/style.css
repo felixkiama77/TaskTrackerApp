@@ -30,6 +30,24 @@ ul {
     gap: 10px;
 }
 
+.sub-sections {
+    background: rgba(0, 120, 170, 0.35);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    border-radius: 16px;
+
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+
+    box-shadow:
+        0 14px 28px rgba(0, 0, 0, 0.4),
+        0 4px 8px rgba(0, 0, 0, 0.25),
+        inset 0 1px 1px rgba(255, 255, 255, 0.25);
+
+    padding: 20px;
+    width: fit-content;
+    margin: 8px auto;
+}
+
 .input-sections {
     background: rgba(0, 120, 170, 0.35);
     border: 1px solid rgba(255, 255, 255, 0.25);
@@ -48,6 +66,7 @@ ul {
     margin-bottom: 20px;
      margin: 20px auto;
 }
+
 
 .show-sections {
     background: rgba(0, 0, 0, 0.15); /* very subtle dark tint */
@@ -81,6 +100,17 @@ ul {
     flex-direction: column;
     width: 350px;
     align-items: center;
+}
+
+.sub-labels {
+    color: #000000;
+    font-weight: bold;
+    padding: 2px 6px;
+    display: inline-block;
+}
+
+.overdue {
+    color:rgb(245, 5, 5)
 }
 
 

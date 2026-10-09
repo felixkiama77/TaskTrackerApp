@@ -1,15 +1,23 @@
+// Import the custom time input panel
+import flatpickr from "flatpickr";
+import "flatpickr/dist/flatpickr.min.css";
+
 class Task {
     readonly internalId: number;
     readonly title: string;
-    dueDate: string;
+    dueDate: Date | null;
+    includesTime: boolean;
     state: boolean;
+    overDue: boolean;
     tags: string[] = [];
     priority: string;
 
-    constructor(id: number, name: string, dueD: string, level: string) {
+    constructor(id: number, name: string, dueD: Date | null, level: string, includeTime: boolean) {
         this.internalId = id;
         this.title = name;
         this.dueDate = dueD;
+        this.includesTime = includeTime;
+        this.overDue = this.isOverDue();
         this.state = false;
         this.priority = level;
     }
@@ -23,7 +31,16 @@ class Task {
     }
 
     getDueDate(): string {
-        return this.dueDate;
+        let due: string;
+        if (!this.dueDate) {
+            due = "No Due Date";
+        } else {
+            due = flatpickr.formatDate(
+                this.dueDate,
+                this.includesTime ? "m-d-Y h:i K" : "m-d-Y"
+            );
+        }
+        return due;
     }
 
     getPriority(): string {
@@ -49,7 +66,7 @@ class Task {
         let s: string = '';
         if (this.tags.length !== 0) {
             for (let t of this.tags) {
-            s += t + " ";
+            s += t + ", ";
             }
         } else {
             s += ('No Tags');
@@ -63,6 +80,52 @@ class Task {
         } else {
             this.state = true;
         }
+    }
+
+    getTimeLeft(): string {
+        let timeLeft: string;
+        if (!this.dueDate) {
+            timeLeft = "No Due Date";
+        } else {
+            const now: Date = new Date();
+            const diff =  this.dueDate.getTime() - now.getTime();
+            if (diff <= 0) {
+                timeLeft = "OverDue!";
+                this.overDue = true;
+            } else {
+                this.overDue = false;
+                const totMinutes = Math.floor(diff / 60000);
+                const days = Math.floor(totMinutes / 1440);
+                const hours = Math.floor((totMinutes % 1440) / 60);
+                const minutes = totMinutes % 60;
+                if (days > 0) {
+                    timeLeft = days + "D, " + hours + "H, and " +  minutes + "M";
+                } else if (hours > 0) {
+                    timeLeft = hours + "H - " + minutes + "M";
+                } else {
+                    timeLeft = minutes + "M";
+                }
+            }   
+        }
+        return timeLeft;
+    }
+
+    isOverDue(): boolean {
+        let overD: boolean;
+        if (!this.dueDate) {
+            overD = false;
+        } else {
+            const now: Date = new Date();
+            const diff =  this.dueDate.getTime() - now.getTime();
+            if (diff <= 0) {
+                overD = true;
+                this.overDue = true;
+            } else {
+                overD = false;
+                this.overDue = false;
+            }
+        }
+        return overD;
     }
 
     printTask() {
@@ -123,8 +186,8 @@ class ManageTask {
         return id;
     }    
 
-    addTask(name: string, due: string, level: string) {
-        const task = new Task(this.getNextAvailableId(), name, due, level);
+    addTask(name: string, due: Date, level: string, includeT: boolean) {
+        const task = new Task(this.getNextAvailableId(), name, due, level, includeT);
         this.taskList.push(task);
     }
 
@@ -231,7 +294,8 @@ class ManageTask {
         if (taskData) {
             const parsedData = JSON.parse(taskData);
             const newList: Task[] = parsedData.map((obj: any) => {
-                const task = new Task(obj.internalId, obj.title, obj.dueDate, obj.priority);
+                const dueDate : Date | null = new Date(obj.dueDate);
+                const task = new Task(obj.internalId, obj.title, dueDate, obj.priority, obj.includesTime);
                 task.state = obj.state;
                 task.tags = Array.isArray(obj.tags) ? obj.tags : [];
                 return task;
@@ -265,21 +329,74 @@ const manager = new ManageTask();
 
 document.addEventListener("DOMContentLoaded", renderTask);
 const taskName = document.getElementById("task-name") as HTMLInputElement;
-const dueDate = document.getElementById("due-date") as HTMLInputElement;
 const taskPriority = document.getElementById("task-priority") as HTMLSelectElement;
 const createButton = document.getElementById("create-task") as HTMLButtonElement;
+const toggleTimeButton = document.getElementById("toggle-time-button") as HTMLButtonElement;
+const inputTimeEle = document.getElementById("task-due-time") as HTMLInputElement;
 const printTask = document.getElementById("task-list") as HTMLOutputElement;
 const outputTags = document.getElementById("tag-list") as HTMLOutputElement;
 const tagFormOutput = document.getElementById("create-tag") as HTMLDivElement;
 const tagMenuButton = document.getElementById("create-tag-button") as HTMLButtonElement;
 
+const fp = flatpickr(inputTimeEle, {
+  dateFormat: "m-d-Y",
+  enableTime: true,
+  altInput: true,
+  altFormat: "F j, Y",
+});
+let includingTaskTime: boolean = false; 
 
 function createAndPrintTask(event: Event): void {
     event.preventDefault();
-    manager.addTask(taskName.value, dueDate.value, taskPriority.value);
+    manager.addTask(taskName.value, fp.selectedDates[0], taskPriority.value, includingTaskTime);
     printTask.style.whiteSpace = 'pre-line';
     manager.storeData();
     renderTask();
+}
+
+function updateCountdown(event: Event): void {
+    for (const task of manager.taskList) {
+        const mainCD = document.getElementById("count-down-" + task.internalId);
+        const tagCD = document.getElementById("tag-task-countdown-" + task.internalId);
+        if (mainCD && tagCD) {
+            applyCountdownDisplay(mainCD, task);
+            applyCountdownDisplay(tagCD, task);
+        } else {
+            console.log("Error, could not get the time left for " + task.getName());
+        }
+    }
+}
+
+function applyCountdownDisplay(el: HTMLElement, task: Task): void {
+    if (task.isOverDue()) {
+        el.textContent = "OverDue";
+        el.classList.add("overdue");
+    } else {
+        el.textContent = task.getTimeLeft();
+        el.classList.remove("overdue");
+    }
+}
+
+
+
+
+//Adds logic to create and uncreate the menu for duedate and due time input.
+function toggleIncludeTime(event: Event): void {
+    event.preventDefault();
+    includingTaskTime = !includingTaskTime;
+    if (includingTaskTime) {
+        toggleTimeButton.textContent = "Include Due Time: TRUE";
+    } else {
+        toggleTimeButton.textContent = "Include Due Time: FALSE";
+    }
+    fp.set("enableTime", includingTaskTime);
+    fp.set("dateFormat", includingTaskTime ? "m-d-Y h:i K" : "m-d-Y");
+    fp.set("altFormat", includingTaskTime ? "m-d-Y h:i K" : "m-d-Y");
+    if (!includingTaskTime && fp.selectedDates.length > 0) {
+        const current = fp.selectedDates[0];
+        const dateOnly = new Date(current.getFullYear(), current.getMonth(), current.getDate());
+        fp.setDate(dateOnly, true);
+    }
 }
 
 function showAllTasks(): void {
@@ -323,10 +440,14 @@ function showTagList(): void {
             "Task #" + tagT.internalId +
             " | " + tagT.title +
             " | Categories: " + tagT.showTags() +
-            " | Due: " + tagT.dueDate +
+            " | Due: " + tagT.getDueDate() +
             " | Priority: " + tagT.priority +
-            " | Done: " + tagT.state;
-
+            " | Done: " + tagT.state +
+            " | OverDue: " + tagT.isOverDue() + " | Time Till Task Due: ";
+             const countDownObj = document.createElement("span");
+            countDownObj.id = "tag-task-countdown-" + tagT.internalId;
+            applyCountdownDisplay(countDownObj, tagT);
+            taskTObj.append(countDownObj)
             const buttonContain = document.createElement("div");
             const deleteButton = document.createElement("button");
             deleteButton.textContent = "Delete";
@@ -378,10 +499,12 @@ function openTagMenu(event: Event): void {
         tagNameInput.id = "input-tag-name";
         tagNamePrompt.textContent = "Enter category";
         tagNamePrompt.htmlFor = "input-tag-name";
+        tagNamePrompt.classList.add("sub-labels");
         containNameInput.append(tagNamePrompt);
         containNameInput.append(tagNameInput);
         containNameInput.classList.add("tag-input-divs");
         const inputTaskPrompt = document.createElement("label");
+        inputTaskPrompt.classList.add("sub-labels");
         inputTaskPrompt.textContent = "Enter the number of Task(s) to add to the Category";
         const tagTask = document.createElement("input");
         tagTask.name = "Task";
@@ -424,10 +547,15 @@ function renderTask() {
         "Task #" + task.internalId +
         " | " + task.title +
         " | Categories: " + task.showTags() +
-        " | Due: " + task.dueDate +
+        " | Due: " + task.getDueDate() +
         " | Priority: " + task.priority +
-        " | Done: " + task.state;
+        " | Done: " + task.state +
+        " | OverDue: " + task.isOverDue() + " | Time Till Task Due: ";
         
+        const countDownObj = document.createElement("span");
+        countDownObj.id = "count-down-" + task.internalId;
+        applyCountdownDisplay(countDownObj, task);
+        taskObj.append(countDownObj)
         const buttonContain = document.createElement("div");
         const deleteButton = document.createElement("button");
         deleteButton.textContent = "Delete";
@@ -458,6 +586,8 @@ function renderTask() {
 }
 createButton.addEventListener("click", createAndPrintTask);
 tagMenuButton.addEventListener("click", openTagMenu);
+toggleTimeButton.addEventListener("click", toggleIncludeTime);
+const intervalID = setInterval(updateCountdown, 60000);  // 60000 is the mili seconds to have the event fire every minute.
 
 
 
