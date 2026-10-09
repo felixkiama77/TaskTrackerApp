@@ -98,4 +98,20 @@ describe('Store persistence (FR-33, FR-34, FR-38)', () => {
     await expect(store.replace({ ...emptyAppData(), tasks: [makeTask()] })).rejects.toThrow()
     expect(store.get()).toBe(before)
   })
+
+  it('starts with defaults when a whole section is malformed, instead of failing to open', async () => {
+    const doc = { ...emptyAppData(), tasks: [makeTask({ id: 'kept' })], settings: 'x', alerts: [], meta: 5 }
+    await fs.writeFile(file(), JSON.stringify(doc), 'utf8')
+    const { store } = await Store.open(dir)
+    expect(store.get().tasks.map((t) => t.id)).toEqual(['kept'])
+    expect(store.get().settings).toEqual(emptyAppData().settings)
+    expect(store.get().alerts).toEqual({ delivered: {}, lastCheckedAt: null })
+  })
+
+  it('refreshes the backup from the current data on request', async () => {
+    const { store } = await Store.open(dir)
+    await store.replace({ ...emptyAppData(), tasks: [makeTask({ id: 'latest' })] })
+    await store.refreshBackup()
+    expect((await readJson(`${DATA_FILE}.bak`)).tasks.map((t) => t.id)).toEqual(['latest'])
+  })
 })

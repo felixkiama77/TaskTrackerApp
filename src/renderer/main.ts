@@ -26,7 +26,7 @@ if (typeof window.taskTracker === 'undefined') {
   startApp(root, window.taskTracker).catch((error: unknown) => {
     console.error('[renderer] Startup failed', error)
     showFatal(
-      'Your data was not changed. Please restart the app; if this keeps happening, check the data folder in %APPDATA%\tasktracker.',
+      'Your data was not changed. Please restart the app; if this keeps happening, check the data folder in %APPDATA%\\tasktracker.',
     )
   })
 }

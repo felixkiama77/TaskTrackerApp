@@ -36,8 +36,12 @@ function stateOf(task: TaskDefinition, key: LocalDate): OccurrenceState {
 }
 
 /** All scheduled occurrences of a task in order, up to `until` (inclusive) when given. */
-export function* occurrencesOf(task: TaskDefinition, until?: LocalDate): Generator<Occurrence> {
-  for (const { date, index } of scheduledDates(task, until)) {
+export function* occurrencesOf(
+  task: TaskDefinition,
+  until?: LocalDate,
+  from?: LocalDate,
+): Generator<Occurrence> {
+  for (const { date, index } of scheduledDates(task, until, from)) {
     yield {
       taskId: task.id,
       key: date,
@@ -54,7 +58,7 @@ export function* occurrencesOf(task: TaskDefinition, until?: LocalDate): Generat
 /** Occurrences (any state) whose date is within [from, to]. */
 export function occurrencesBetween(task: TaskDefinition, from: LocalDate, to: LocalDate): Occurrence[] {
   const result: Occurrence[] = []
-  for (const occ of occurrencesOf(task, to)) if (compareDates(occ.date, from) >= 0) result.push(occ)
+  for (const occ of occurrencesOf(task, to, from)) if (compareDates(occ.date, from) >= 0) result.push(occ)
   return result
 }
 

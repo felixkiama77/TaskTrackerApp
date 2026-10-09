@@ -25,6 +25,9 @@ function contentSecurityPolicy(): Plugin {
         "font-src 'self'",
         dev ? `connect-src 'self' ws://localhost:${DEV_PORT}` : "connect-src 'self'",
         "object-src 'none'",
+        "frame-src 'none'",
+        "worker-src 'none'",
+        "manifest-src 'none'",
         "base-uri 'none'",
         "form-action 'none'",
       ].join('; ')

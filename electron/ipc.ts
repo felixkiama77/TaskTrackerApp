@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { applyCommand, CommandError } from '../src/domain/commands'
 import { importLegacyData, type LegacyImportReport } from '../src/domain/legacy'
 import { CommandSchema, IdSchema, SoundSlotSchema, type Command } from '../src/domain/schemas'
-import { assignSound, folderFor, MAX_TRACKS, removeSound } from '../src/domain/sounds'
+import { assignSound, folderFor, MAX_TRACKS, removeSound, type SoundSlot } from '../src/domain/sounds'
 import type { AppData } from '../src/domain/types'
 import {
   Channels,
@@ -112,13 +112,33 @@ export function registerIpc(deps: IpcDeps) {
     return report
   })
 
-  handle(Channels.testNotification, () => deps.testNotification())
+  let lastTestNotification = 0
+  handle(Channels.testNotification, () => {
+    const now = Date.now()
+    if (now - lastTestNotification < 2000) {
+      return { ok: false, error: 'Please wait a moment before sending another test.' }
+    }
+    lastTestNotification = now
+    return deps.testNotification()
+  })
   handle(Channels.getAppInfo, () => deps.appInfo())
   handle(Channels.openDataFolder, () => deps.openDataFolder())
   handle(Channels.reportAudio, (_event, payload) => deps.setAudioReport(AudioReportSchema.parse(payload)))
 
+  // One file picker at a time, so concurrent requests can't open several dialogs or exceed limits.
+  let choosingSound = false
   handle(Channels.chooseSound, async (_event, payload): Promise<SoundImportResult> => {
     const { slot } = ChooseSoundSchema.parse(payload)
+    if (choosingSound) return { cancelled: true, added: 0, errors: [] }
+    choosingSound = true
+    try {
+      return await chooseSound(slot)
+    } finally {
+      choosingSound = false
+    }
+  })
+
+  async function chooseSound(slot: SoundSlot): Promise<SoundImportResult> {
     const paths = await deps.pickSoundFiles(slot.kind === 'music')
     if (paths.length === 0) return { cancelled: true, added: 0, errors: [] }
     const errors: string[] = []
@@ -158,7 +178,7 @@ export function registerIpc(deps: IpcDeps) {
     await Promise.all(replaced.map((file) => deps.sounds.deleteFile(folderFor(slot), file)))
     deps.onChanged(previous, next, null)
     return { cancelled: false, added: imported.length, errors }
-  })
+  }
 
   handle(Channels.removeSound, async (_event, payload): Promise<DispatchResult> => {
     const { slot, trackId } = RemoveSoundSchema.parse(payload)

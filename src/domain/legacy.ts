@@ -1,5 +1,12 @@
 import { isValidLocalDate, localDateOf, localTimeOf, type LocalDate, type LocalTime } from './dates'
-import type { AppData, ArchiveRecord, Difficulty, TaskDefinition } from './types'
+import {
+  MAX_CATEGORIES,
+  MAX_TASKS,
+  type AppData,
+  type ArchiveRecord,
+  type Difficulty,
+  type TaskDefinition,
+} from './types'
 
 /**
  * One-time import of data saved by the earlier version of the app in renderer localStorage under the
@@ -88,11 +95,11 @@ export function importLegacyData(
     return id
   }
 
-  for (const tag of parseArray(raw.tags)) {
+  for (const tag of parseArray(raw.tags).slice(0, MAX_CATEGORIES)) {
     if (tag && typeof tag === 'object') categoryIdFor((tag as { tagName?: unknown }).tagName)
   }
 
-  for (const entry of parseArray(raw.tasks)) {
+  for (const entry of parseArray(raw.tasks).slice(0, MAX_TASKS)) {
     if (!entry || typeof entry !== 'object') {
       report.unreadable++
       continue

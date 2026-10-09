@@ -1,4 +1,12 @@
-import { addDays, compareDates, dateParts, monthDateClamped, weekdayOf, type LocalDate } from './dates'
+import {
+  addDays,
+  compareDates,
+  dateParts,
+  diffDays,
+  monthDateClamped,
+  weekdayOf,
+  type LocalDate,
+} from './dates'
 import type { Recurrence, RecurrenceEnd } from './types'
 
 /** The parts of a task that determine its schedule. */
@@ -29,8 +37,15 @@ const MAX_OCCURRENCES = 100_000
  *
  * A `count` end limits the total number of occurrences, including the first. `endBefore` (set when a
  * series is split) stops the series before that date.
+ *
+ * `from` is a hint that dates before it aren't needed: daily and weekly series jump ahead instead of
+ * stepping through every earlier day (indexes stay exact). A few earlier dates may still be yielded.
  */
-export function* scheduledDates(schedule: Schedule, until?: LocalDate): Generator<ScheduledDate> {
+export function* scheduledDates(
+  schedule: Schedule,
+  until?: LocalDate,
+  from?: LocalDate,
+): Generator<ScheduledDate> {
   const { startDate, recurrence, end, endBefore } = schedule
   const limit = recurrence.kind === 'once' ? 1 : end.kind === 'count' ? end.count : MAX_OCCURRENCES
   const withinBounds = (date: LocalDate) =>
@@ -46,14 +61,26 @@ export function* scheduledDates(schedule: Schedule, until?: LocalDate): Generato
       return
     }
     case 'daily': {
-      for (let date = startDate; index < limit && withinBounds(date); date = addDays(date, 1))
-        yield next(date)
+      let date = startDate
+      const skip = from === undefined ? 0 : diffDays(startDate, from)
+      if (skip > 0) {
+        index = skip
+        date = from!
+      }
+      for (; index < limit && withinBounds(date); date = addDays(date, 1)) yield next(date)
       return
     }
     case 'weekly': {
       const days = new Set(recurrence.weekdays)
       if (days.size === 0) return
-      for (let date = startDate; index < limit && withinBounds(date); date = addDays(date, 1)) {
+      let date = startDate
+      // Any 7 consecutive days contain each selected weekday exactly once, so whole weeks can be skipped.
+      const weeks = from === undefined ? 0 : Math.floor(diffDays(startDate, from) / 7)
+      if (weeks > 0) {
+        index = weeks * days.size
+        date = addDays(startDate, weeks * 7)
+      }
+      for (; index < limit && withinBounds(date); date = addDays(date, 1)) {
         if (days.has(weekdayOf(date))) yield next(date)
       }
       return
@@ -74,7 +101,7 @@ export function* scheduledDates(schedule: Schedule, until?: LocalDate): Generato
 /** Scheduled dates within [from, to] (inclusive). */
 export function scheduledDatesBetween(schedule: Schedule, from: LocalDate, to: LocalDate): ScheduledDate[] {
   const result: ScheduledDate[] = []
-  for (const item of scheduledDates(schedule, to)) {
+  for (const item of scheduledDates(schedule, to, from)) {
     if (compareDates(item.date, from) >= 0) result.push(item)
   }
   return result

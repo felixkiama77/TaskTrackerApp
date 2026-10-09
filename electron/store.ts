@@ -69,6 +69,10 @@ function parseSounds(raw: unknown): UserSounds {
   return sounds
 }
 
+/** A malformed section (e.g. "settings": "x") falls back to defaults instead of stopping startup. */
+const objectOrEmpty = (value: unknown): object =>
+  value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {}
+
 const MetaSchema = z.object({ legacyImportedAt: IsoTimestampSchema.nullable().catch(null) })
 
 /**
@@ -124,10 +128,10 @@ export function parseAppData(raw: unknown): ParsedData {
       tasks,
       categories,
       archive,
-      settings: SettingsSchema.parse(doc.settings ?? {}),
+      settings: SettingsSchema.parse(objectOrEmpty(doc.settings)),
       sounds: parseSounds(doc.sounds),
-      alerts: AlertsSchema.parse(doc.alerts ?? {}),
-      meta: MetaSchema.parse(doc.meta ?? {}),
+      alerts: AlertsSchema.parse(objectOrEmpty(doc.alerts)),
+      meta: MetaSchema.parse(objectOrEmpty(doc.meta)),
     },
     quarantined,
   }
@@ -249,6 +253,12 @@ export class Store {
   }
 
   /** Resolves once every queued write has finished. */
+  /** Copies the current data file to the backup (after any queued writes). */
+  async refreshBackup(): Promise<void> {
+    await this.flush()
+    await fs.copyFile(this.filePath, `${this.filePath}.bak`)
+  }
+
   flush(): Promise<void> {
     return this.writeQueue
   }
@@ -256,7 +266,14 @@ export class Store {
   private async write(data: AppData) {
     const target = this.filePath
     const temp = `${target}.tmp`
-    await fs.writeFile(temp, JSON.stringify(data, null, 2), 'utf8')
+    // Flush to disk before the rename so a power cut can't leave an empty data file.
+    const handle = await fs.open(temp, 'w')
+    try {
+      await handle.writeFile(JSON.stringify(data, null, 2), 'utf8')
+      await handle.sync()
+    } finally {
+      await handle.close()
+    }
     await renameWithRetry(temp, target)
   }
 }

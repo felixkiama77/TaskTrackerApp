@@ -38,7 +38,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 process.env.APP_ROOT = path.join(__dirname, '..')
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
-export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
+// Only honored when running from source: an installed build never loads a page from a URL in the environment.
+export const VITE_DEV_SERVER_URL = app.isPackaged ? undefined : process.env['VITE_DEV_SERVER_URL']
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
@@ -47,9 +48,11 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 /** Must match `appId` in electron-builder.json5; Windows ties notifications to it. */
 const APP_ID = 'io.github.felixkiama77.tasktracker'
 
-// Automated tests point the data folder at a throwaway directory. Otherwise the folder is pinned to
-// %APPDATA%/tasktracker so it stays stable even if the product name changes.
-const TEST_MODE = Boolean(process.env.TASK_TRACKER_USER_DATA)
+// Automated tests point the data folder at a throwaway directory (also allowed for installed builds,
+// so the packaged app can be checked without touching real data). Otherwise the folder is pinned to
+// %APPDATA%/tasktracker so it stays stable even if the product name changes. The other test switches
+// (fake clock, recorded notifications, scripted file picks) only work when running from source.
+const TEST_MODE = !app.isPackaged && Boolean(process.env.TASK_TRACKER_USER_DATA)
 app.setPath(
   'userData',
   process.env.TASK_TRACKER_USER_DATA ?? path.join(app.getPath('appData'), 'tasktracker'),
@@ -65,7 +68,7 @@ const iconPath = path.join(
   process.platform === 'win32' ? 'app-icon.ico' : 'app-icon.png',
 )
 const devOrigin = VITE_DEV_SERVER_URL ? new URL(VITE_DEV_SERVER_URL).origin : null
-const indexFileUrl = pathToFileURL(path.join(RENDERER_DIST, 'index.html')).href
+const indexFilePath = path.join(RENDERER_DIST, 'index.html')
 
 // Sounds the user added are served to the page as tt-sound://sound/<folder>/<file>, only from the
 // app's sounds folder. Must be registered before the app is ready; "stream" lets audio seek.
@@ -86,14 +89,20 @@ let trayHintShown = false
 /** Notification kinds whose sound the window plays itself (see AudioReport). */
 let customNotificationSounds = new Set<string>()
 
-/** True only for the app's own page: the dev server in development, dist/index.html when built. */
+const samePath = (a: string, b: string) =>
+  process.platform === 'win32'
+    ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase()
+    : path.resolve(a) === path.resolve(b)
+
+/**
+ * True only for the app's own page: the dev server in development, dist/index.html when built. File
+ * URLs are compared as paths, so unusual characters in the install path (e.g. "%") can't break it.
+ */
 function isAppUrl(url: string): boolean {
   try {
     const parsed = new URL(url)
     if (devOrigin) return parsed.origin === devOrigin
-    parsed.hash = ''
-    parsed.search = ''
-    return parsed.href === indexFileUrl
+    return parsed.protocol === 'file:' && samePath(fileURLToPath(parsed), indexFilePath)
   } catch {
     return false
   }
@@ -192,6 +201,13 @@ function hardenWebContents() {
     contents.on('will-navigate', (event, url) => {
       if (!isAppUrl(url)) event.preventDefault()
     })
+    // Also block navigation in any frame, and redirects away from the app.
+    contents.on('will-frame-navigate', (event) => {
+      if (!isAppUrl(event.url)) event.preventDefault()
+    })
+    contents.on('will-redirect', (event, url) => {
+      if (!isAppUrl(url)) event.preventDefault()
+    })
     contents.on('will-attach-webview', (event) => event.preventDefault())
   })
   // The page never needs camera, microphone, location, web notifications and so on; native
@@ -233,7 +249,13 @@ async function start() {
   protocol.handle('tt-sound', (request) => {
     const url = new URL(request.url)
     const [, folder = '', file = ''] = url.pathname.split('/')
-    const full = url.host === 'sound' ? sounds.resolve(folder, decodeURIComponent(file)) : null
+    let name: string
+    try {
+      name = decodeURIComponent(file)
+    } catch {
+      return new Response('Not found', { status: 404 })
+    }
+    const full = url.host === 'sound' ? sounds.resolve(folder, name) : null
     if (!full) return new Response('Not found', { status: 404 })
     // Forward headers such as Range so audio can stream and seek.
     return net.fetch(pathToFileURL(full).toString(), { headers: request.headers })
@@ -243,6 +265,8 @@ async function start() {
   await maintain()
   setInterval(() => {
     maintain().catch((error: unknown) => console.error('[main] Maintenance failed:', error))
+    // Keep the backup recent, not only from the last launch.
+    openedStore.refreshBackup().catch((error: unknown) => console.error('[main] Backup failed:', error))
   }, 3_600_000)
 
   const activeNotifier: Notifier =

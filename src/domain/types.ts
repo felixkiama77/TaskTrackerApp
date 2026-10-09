@@ -158,5 +158,9 @@ export const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy', medi
 /** Reminder presets offered in the editor, in minutes before the due time. */
 export const REMINDER_PRESETS = [0, 5, 15, 30, 60, 120, 1440, 2880] as const
 
+/** Upper limits that keep the app responsive and the data file reasonable. */
+export const MAX_TASKS = 2000
+export const MAX_CATEGORIES = 200
+
 /** Archive records are removed this long after completion (FR-20). */
 export const ARCHIVE_RETENTION_MS = 90 * 86_400_000

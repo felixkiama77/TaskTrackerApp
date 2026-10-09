@@ -5,6 +5,16 @@
   appId: 'io.github.felixkiama77.tasktracker',
   productName: 'Task Tracker',
   asar: true,
+  // Lock down the shipped Electron binary: no running as plain Node, no NODE_OPTIONS or inspector
+  // flags, only the app's own integrity-checked archive is loaded, and cookies are encrypted.
+  electronFuses: {
+    runAsNode: false,
+    enableNodeOptionsEnvironmentVariable: false,
+    enableNodeCliInspectArguments: false,
+    enableEmbeddedAsarIntegrityValidation: true,
+    onlyLoadAppFromAsar: true,
+    enableCookieEncryption: true,
+  },
   directories: {
     output: 'release/${version}',
     buildResources: 'build',

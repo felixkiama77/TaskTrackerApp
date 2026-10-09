@@ -2,7 +2,14 @@ import { createArchiveRecord, purgeExpiredArchive } from './archive'
 import { compareDates, dateParts, monthDateClamped, type LocalDate } from './dates'
 import { findOccurrence, overdueOccurrences } from './occurrences'
 import type { Command, DeleteScope, TaskInput, UpdateScope } from './schemas'
-import type { AppData, Recurrence, RecurrenceEnd, TaskDefinition } from './types'
+import {
+  MAX_CATEGORIES,
+  MAX_TASKS,
+  type AppData,
+  type Recurrence,
+  type RecurrenceEnd,
+  type TaskDefinition,
+} from './types'
 
 export interface CommandContext {
   now: number
@@ -35,6 +42,7 @@ export function applyCommand(data: AppData, command: Command, ctx: CommandContex
 
   switch (command.type) {
     case 'task/create': {
+      assertRoomForTask(next)
       next.tasks.push(taskFromInput(command.input, next, ctx.newId(), ctx.now))
       return result('Task created.')
     }
@@ -87,6 +95,9 @@ export function applyCommand(data: AppData, command: Command, ctx: CommandContex
     }
     case 'category/create': {
       const name = command.name.trim()
+      if (next.categories.length >= MAX_CATEGORIES) {
+        throw new CommandError(`You can have up to ${MAX_CATEGORIES} categories. Delete one to add another.`)
+      }
       assertUniqueCategoryName(next, name, null)
       next.categories.push({ id: ctx.newId(), name, createdAt: new Date(ctx.now).toISOString() })
       return result(`Category “${name}” created.`)
@@ -150,6 +161,14 @@ function requireActiveOccurrence(task: TaskDefinition, key: LocalDate) {
   if (!occ) throw new CommandError('This occurrence is not part of the task’s schedule.')
   if (occ.state !== 'active') throw new CommandError('This occurrence is no longer active.')
   return occ
+}
+
+function assertRoomForTask(data: AppData) {
+  if (data.tasks.length >= MAX_TASKS) {
+    throw new CommandError(
+      `You can have up to ${MAX_TASKS.toLocaleString('en-US')} tasks. Delete some to add more.`,
+    )
+  }
 }
 
 function touch(task: TaskDefinition, now: number) {
@@ -221,6 +240,7 @@ function updateTask(
 
   if (scope.kind === 'occurrence') {
     // "Only this occurrence": the occurrence leaves the series and becomes its own one-time task.
+    assertRoomForTask(data)
     task.exceptions[occ.key] = 'detached'
     touch(task, ctx.now)
     data.tasks.push(taskFromInput({ ...input, recurrence: { kind: 'once' } }, data, ctx.newId(), ctx.now))
@@ -234,6 +254,7 @@ function updateTask(
     return 'Task updated.'
   }
 
+  assertRoomForTask(data)
   const successor = taskFromInput(input, data, ctx.newId(), ctx.now)
   // The repeat count describes the whole series, so the new part gets what remains of it.
   if (successor.end.kind === 'count') {
