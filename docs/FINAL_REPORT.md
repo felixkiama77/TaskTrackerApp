@@ -1,6 +1,6 @@
 # Task Tracker — Final Report
 
-Branch `desktop-overhaul` (17 commits on top of `main`; nothing pushed). Date: 2026-10-08.
+Branch `desktop-overhaul`, built on top of `main` (nothing pushed). Date: 2026-10-08.
 
 Related documents:
 
