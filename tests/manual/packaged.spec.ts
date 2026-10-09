@@ -4,14 +4,16 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 /**
- * Manual check of the packaged app (run `npm run build` first, then `MANUAL=1 npx playwright test`).
+ * Manual check of the packaged app (run `npm run build:inspectable` first, then `npm run test:manual`).
  * Launches release/<version>/win-unpacked without installing anything, against a throwaway data folder.
  */
 const { version } = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }
-const exe = path.join('release', version, 'win-unpacked', 'Task Tracker.exe')
+// The real build's fuses block the debugger Playwright needs, so this check uses the copy made by
+// `npm run build:inspectable`: identical except that one fuse.
+const exe = path.join('release', 'inspectable', 'win-unpacked', 'Task Tracker.exe')
 
 test('the packaged app runs with production settings and Windows accepts its notifications', async () => {
-  test.skip(!existsSync(exe), `Build the installer first (${exe} not found).`)
+  test.skip(!existsSync(exe), 'Run npm run build:inspectable first.')
   const userData = mkdtempSync(path.join(tmpdir(), 'tasktracker-packaged-'))
   const app = await electron.launch({
     executablePath: exe,

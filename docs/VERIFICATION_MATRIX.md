@@ -1,68 +1,94 @@
 # Verification Matrix
 
-Maps each requirement in [`docs/specs/`](specs/) to how it is verified. Requirement text lives only in the specs.
-Methods: **U** unit (Vitest) · **I** integration (Vitest, real store/scheduler with fake clock) · **E** end-to-end (Playwright driving Electron) · **M** manual · **V** screenshot review.
+Maps each requirement in [`docs/specs/`](specs/) to how it was verified. The requirement text itself lives only in the specs.
 
-Status: ⬜ not started · 🟨 implemented, not fully verified · ✅ verified · ❌ failing / not implemented
+**Methods:**
+
+- **U** — unit test (Vitest, `tests/unit`)
+- **I** — integration test (Vitest, `tests/integration`; real store, scheduler and sound library with a fake clock)
+- **E** — end-to-end test (Playwright driving the built Electron app, `tests/e2e`)
+- **M** — manual or packaged-build check (`tests/manual`, `npm run test:manual`)
+- **V** — screenshot review (`test-results/screens/`)
+- **R** — code review (including the independent security review)
+
+**Status:** ✅ verified · 🟨 implemented, partly verified (see note) · ❌ not done
+
+Last full run (2026-10-08): 135 unit and integration tests, 16 end-to-end tests, and 4 manual checks passed. The fifth manual check (legacy import) needs a profile copy; it was run once against a copy of the real profile and passed. `tsc`, ESLint and Prettier are clean. An automated accessibility scan (axe-core, WCAG 2.1 AA) found no serious or critical issues.
 
 ## Functional requirements (`TASK_TRACKER_FUNCTIONAL_REQUIREMENTS.md`)
 
-| ID    | Area                                                  | Methods        | Tests / evidence | Status |
-| ----- | ----------------------------------------------------- | -------------- | ---------------- | ------ |
-| FR-1  | Create task + validation                              | U, E           |                  | ⬜     |
-| FR-2  | Frequency / recurrence                                | U              |                  | ⬜     |
-| FR-3  | Repetition count                                      | U              |                  | ⬜     |
-| FR-4  | Categories on creation                                | U, E           |                  | ⬜     |
-| FR-5  | Reminder configuration                                | U, E           |                  | ⬜     |
-| FR-6  | Create categories                                     | U, E           |                  | ⬜     |
-| FR-7  | Delete category keeps tasks                           | U, I, E        |                  | ⬜     |
-| FR-8  | Edit categories                                       | U, E           |                  | ⬜     |
-| FR-9  | Active task display                                   | E, V           |                  | ⬜     |
-| FR-10 | Multiple views                                        | E, V           |                  | ⬜     |
-| FR-11 | Sort by due date                                      | U, E           |                  | ⬜     |
-| FR-12 | Sort by difficulty                                    | U, E           |                  | ⬜     |
-| FR-13 | Filter by category                                    | U, E           |                  | ⬜     |
-| FR-14 | Today / Next 3 days / This week / Overdue / Completed | U, E           |                  | ⬜     |
-| FR-15 | Edit task (incl. recurring scope)                     | U, E           |                  | ⬜     |
-| FR-16 | Delete task (scope, cancels reminders)                | U, I, E        |                  | ⬜     |
-| FR-17 | Complete occurrence (idempotent)                      | U, I, E        |                  | ⬜     |
-| FR-18 | Completion classification                             | U              |                  | ⬜     |
-| FR-19 | Archive snapshot                                      | U, I           |                  | ⬜     |
-| FR-20 | 90-day retention                                      | U, I           |                  | ⬜     |
-| FR-21 | Browse completed                                      | E, V           |                  | ⬜     |
-| FR-22 | Native OS notifications                               | I, M           |                  | ⬜     |
-| FR-23 | Reminder scheduling / reconciliation                  | U, I           |                  | ⬜     |
-| FR-24 | Due-time alarms                                       | U, I, M        |                  | ⬜     |
-| FR-25 | Edge alerts (blue / red)                              | E, V, M        |                  | ⬜     |
-| FR-26 | Notification reliability & security                   | I, M           |                  | ⬜     |
-| FR-27 | Consistent "now", local dates                         | U              |                  | ⬜     |
-| FR-28 | Timed vs date-only overdue                            | U              |                  | ⬜     |
-| FR-29 | Time-sensitive refresh                                | U, E           |                  | ⬜     |
-| FR-30 | Calendar navigation                                   | E, V           |                  | ⬜     |
-| FR-31 | Calendar status colors                                | U, E, V        |                  | ⬜     |
-| FR-32 | Calendar accuracy (shared logic)                      | U, E           |                  | ⬜     |
-| FR-33 | Persistence across restarts                           | I, E           |                  | ⬜     |
-| FR-34 | Safe updates & migrations                             | U, I           |                  | ⬜     |
-| FR-35 | Single source of truth                                | Code review, U |                  | ⬜     |
-| FR-36 | Input validation feedback                             | U, E           |                  | ⬜     |
-| FR-37 | Operation feedback                                    | E, V           |                  | ⬜     |
-| FR-38 | Failure recovery                                      | U, I           |                  | ⬜     |
+| ID    | Area                                                  | Methods | Evidence                                                                                                                                                                                    | Status |
+| ----- | ----------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| FR-1  | Create task + validation                              | U, E    | `schemas.test` (messages for each field), `commands.test`; `journeys` (blank name rejected, create), `editor-and-lists`                                                                     | ✅     |
+| FR-2  | Frequency / recurrence                                | U, E    | `recurrence.test` (daily, weekdays, monthly clamp, DST), `limits.test` (2,000 random schedules); `editor-and-lists` (weekly Mon/Thu via the form)                                           | ✅     |
+| FR-3  | Repetition count                                      | U, E    | `recurrence.test` (count includes the first), `commands.test` (split keeps the remaining count); `editor-and-lists` ("6 times")                                                             | ✅     |
+| FR-4  | Categories on creation                                | U, E    | `schemas.test` (no duplicates); `editor-and-lists` (category chosen in the form is saved)                                                                                                   | ✅     |
+| FR-5  | Reminder configuration                                | U, I, E | `alerts.test`; `scheduler.test`; `editor-and-lists` (at due time + 15 min saved)                                                                                                            | ✅     |
+| FR-6  | Create categories                                     | U, E    | `commands.test` (case-insensitive duplicates); `journeys` (create, duplicate rejected with a message)                                                                                       | ✅     |
+| FR-7  | Delete category keeps tasks                           | U, E    | `commands.test`; `journeys` (task kept without the chip; Completed keeps the name)                                                                                                          | ✅     |
+| FR-8  | Edit categories                                       | U       | `commands.test` (rename updates live references, archive keeps the old name). The rename form was not exercised by an automated test.                                                       | 🟨     |
+| FR-9  | Active task display                                   | E, V    | `journeys`, `editor-and-lists`; screenshots 01–05                                                                                                                                           | ✅     |
+| FR-10 | Multiple views                                        | E, V    | Every view opened in `visual-review` and `journeys`; list, calendar month and agenda                                                                                                        | ✅     |
+| FR-11 | Sort by due date                                      | U, E    | `views.test` (date-only after timed, both directions); `editor-and-lists`                                                                                                                   | ✅     |
+| FR-12 | Sort by difficulty                                    | U, E    | `views.test`; `editor-and-lists` (both directions)                                                                                                                                          | ✅     |
+| FR-13 | Filter by category                                    | U, E    | `views.test` (any-match, multiple categories, deleted category); `editor-and-lists` (filter + clear)                                                                                        | ✅     |
+| FR-14 | Today / Next 3 days / This week / Overdue / Completed | U, E, V | `views.test` (exact local-date ranges, week start); each view in `visual-review`; Completed in `journeys`                                                                                   | ✅     |
+| FR-15 | Edit task (incl. recurring scope)                     | U, E    | `commands.test` (only this; this and future at the first or a later occurrence; archive untouched); `journeys` (only this occurrence), `editor-and-lists` (this and future)                 | ✅     |
+| FR-16 | Delete task (scope, cancels reminders)                | U, I, E | `commands.test`; `scheduler.test` (deleted occurrences get no alerts); `editor-and-lists` (one-time with confirmation, whole series)                                                        | ✅     |
+| FR-17 | Complete occurrence (idempotent)                      | U, E    | `commands.test` (twice → one record; series continues); `journeys` (complete, undo, complete)                                                                                               | ✅     |
+| FR-18 | Completion classification                             | U, E    | `archive.test` (timed and date-only boundaries); `journeys` ("On time")                                                                                                                     | ✅     |
+| FR-19 | Archive snapshot                                      | U       | `archive.test` (snapshot of every field; later edits don't change it)                                                                                                                       | ✅     |
+| FR-20 | 90-day retention                                      | U, R    | `archive.test` (exact boundary, idempotent), `commands.test` (maintenance never touches tasks). Runs at startup and hourly (R).                                                             | ✅     |
+| FR-21 | Browse completed                                      | E, V    | `journeys`; screenshot 08                                                                                                                                                                   | ✅     |
+| FR-22 | Native OS notifications                               | I, E, M | `scheduler.test`; `journeys` (notification requested); `native-notification` and `packaged` (Windows accepted real notifications from the dev and packaged builds)                          | ✅     |
+| FR-23 | Reminder scheduling and reconciliation                | U, I    | `scheduler.test` (once each, restarts, missed summary, sleep, clock moved back, completed/deleted, failure keeps checking)                                                                  | ✅     |
+| FR-24 | Due-time alarms                                       | U, I    | `alerts.test`, `scheduler.test`                                                                                                                                                             | ✅     |
+| FR-25 | Edge alerts (blue/red)                                | E, V    | `journeys` (blue pulse with a reminder; steady red outline with reduced motion)                                                                                                             | ✅     |
+| FR-26 | Notification reliability and security                 | I, E, R | Testable scheduler (`scheduler.test`); `security-and-persistence` (narrow API, invalid input rejected); independent security review                                                         | ✅     |
+| FR-27 | Consistent "now", local dates                         | U       | `dates.test` (Pacific time, both 2026 DST changes, no UTC parsing of dates)                                                                                                                 | ✅     |
+| FR-28 | Timed vs date-only overdue                            | U       | `occurrences.test`                                                                                                                                                                          | ✅     |
+| FR-29 | Time-sensitive refresh                                | U, R    | Status changes covered by `occurrences.test`. The window refreshes every minute and after sleep or unlock (R). A test of the window updating as time passes was not automated.              | 🟨     |
+| FR-30 | Calendar navigation                                   | E, V    | Month and agenda in `visual-review`; screenshots 06–07. The previous/next month buttons were not exercised by an automated test.                                                            | 🟨     |
+| FR-31 | Calendar status colours                               | U, V    | `occurrences.test` (future/today/overdue); screenshot 06 (overdue stays red on its original date; legend with text)                                                                         | ✅     |
+| FR-32 | Calendar accuracy (shared logic)                      | U, R    | Calendar and lists use the same `occurrences`/`statusOf` functions                                                                                                                          | ✅     |
+| FR-33 | Persistence across restarts                           | I, E    | `store.test`; `security-and-persistence`, `journeys`, `sound-upload` (after restart)                                                                                                        | ✅     |
+| FR-34 | Safe updates and migrations                           | U, I, M | `store.test` (corrupt file → backup, quarantine, malformed sections, rollback on a failed write); `legacy.test`; `legacy-import` against a copy of the real profile (4 tasks, 5 categories) | ✅     |
+| FR-35 | Single source of truth                                | R       | One store in the main process; the window only displays snapshots and sends validated commands                                                                                              | ✅     |
+| FR-36 | Input validation feedback                             | U, E    | `schemas.test`; `journeys` (inline error, `aria-invalid`)                                                                                                                                   | ✅     |
+| FR-37 | Operation feedback                                    | E       | Toasts asserted in `journeys`, `editor-and-lists`, `sound-upload`                                                                                                                           | ✅     |
+| FR-38 | Failure recovery                                      | U, I    | `store.test` (unreadable or partial data, failed writes), `scheduler.test` (a check throws or the OS refuses a notification), `soundLibrary.test` (bad files)                               | ✅     |
 
 ## Design acceptance checklist (`TASK_TRACKER_DESIGN_SPEC_FOR_CLAUDE.md` §12)
 
-| Item                                                             | Methods           | Evidence | Status |
-| ---------------------------------------------------------------- | ----------------- | -------- | ------ |
-| Logo follows the reference                                       | V                 |          | ⬜     |
-| Brand colors centralized as tokens                               | Code review       |          | ⬜     |
-| Consistent across screens                                        | V                 |          | ⬜     |
-| Future / today / overdue / reminder states distinct & accessible | V, contrast check |          | ⬜     |
-| Create/edit covers every feature                                 | E                 |          | ⬜     |
-| Completion archives with original details                        | U, E              |          | ⬜     |
-| Category deletion keeps tasks                                    | U, E              |          | ⬜     |
-| Calendar blue/green/red rules                                    | U, V              |          | ⬜     |
-| Startup animation short / skipped when not needed                | V, M              |          | ⬜     |
-| Edge alerts subtle, finite, dismissible, reduced-motion aware    | E, V              |          | ⬜     |
-| Native notifications tested on packaged Windows build            | M                 |          | ⬜     |
-| App icon tested in packaged build                                | M                 |          | ⬜     |
-| Keyboard, focus, contrast, reduced motion                        | E, M              |          | ⬜     |
-| Existing functionality preserved                                 | E                 |          | ⬜     |
+| Item                                                          | Methods | Evidence                                                                                                                                                                                                   | Status |
+| ------------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Logo follows the reference                                    | V       | Vector traced from measured geometry; compared side by side; pixel-aligned versions for 16–32 px                                                                                                           | ✅     |
+| Brand colours centralized as tokens                           | R       | Colours appear only in `src/styles/tokens.css`. The one exception is the window background in `electron/main.ts`, which is painted before the CSS loads and is documented there.                           | ✅     |
+| Consistent across screens                                     | V       | Screenshots 00–15                                                                                                                                                                                          | ✅     |
+| Future/today/overdue/reminder states distinct and accessible  | V, E    | Text + icon + colour; axe contrast scan clean                                                                                                                                                              | ✅     |
+| Create/edit covers every feature                              | E       | `editor-and-lists`                                                                                                                                                                                         | ✅     |
+| Completion archives with original details                     | U, E    | `archive.test`, `journeys`                                                                                                                                                                                 | ✅     |
+| Category deletion keeps tasks                                 | U, E    | `journeys`                                                                                                                                                                                                 | ✅     |
+| Calendar blue/green/red rules                                 | U, V    | Screenshot 06                                                                                                                                                                                              | ✅     |
+| Startup animation short, skipped when not needed              | R       | The logo appears only if loading takes over 150 ms; the app fades in over 200 ms                                                                                                                           | ✅     |
+| Edge alerts subtle, finite, dismissible, reduced-motion aware | E       | `journeys`                                                                                                                                                                                                 | ✅     |
+| Native notifications tested on the packaged OS build          | M       | The packaged build's notification was accepted by Windows. How the toast looks on screen was not captured.                                                                                                 | 🟨     |
+| App icon tested in the packaged build                         | M       | The T icon is embedded in the app and installer (extracted with Windows APIs). The taskbar, Start menu and notification icons of an _installed_ copy have not been checked, because nothing was installed. | 🟨     |
+| Keyboard, focus, contrast, reduced motion                     | E       | `journeys` (Ctrl+N, Escape, focus return), axe scan, reduced-motion test                                                                                                                                   | ✅     |
+| Existing functionality preserved                              | E, M    | Everything the old app did is still there; its saved data is imported (`legacy-import`)                                                                                                                    | ✅     |
+
+## Security (independent review, 2026-10-08)
+
+| Finding                                                                                     | Status                                                                    |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| A malformed settings section stopped startup                                                | ✅ Fixed (`store.test`)                                                   |
+| Dev and test environment switches honoured by installed builds                              | ✅ Fixed (`isPackaged` gate; the data-folder override is kept on purpose) |
+| No Electron fuses                                                                           | ✅ Fixed (`fuses` manual check: fails without fuses, passes with them)    |
+| No limits on the number of tasks or categories; long series walked from the start           | ✅ Fixed (`limits.test`)                                                  |
+| Sound import could be swapped between checks                                                | ✅ Fixed (one file handle)                                                |
+| The app-page check used string comparison of file URLs                                      | ✅ Fixed (path comparison; packaged check passes)                         |
+| No flush to disk before replacing the data file; backup only refreshed at startup           | ✅ Fixed                                                                  |
+| A malformed sound URL caused an error instead of "not found"                                | ✅ Fixed                                                                  |
+| Hardening: sub-frame navigation and redirects, tighter CSP, one file picker at a time       | ✅ Done                                                                   |
+| Hardening: serve the page from a custom `app://` scheme instead of `file://`; Trusted Types | Not done (optional; see the final report)                                 |
+| Code signing; Electron 44.7 update                                                          | Not done (needs a certificate / a waiting period for the new release)     |

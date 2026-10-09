@@ -17,7 +17,9 @@
     "test:watch": "vitest",
     "test:e2e": "vite build && playwright test",
     "check": "npm run typecheck && npm run lint && npm run test",
-    "icons": "electron scripts/generate-icons.mjs"
+    "icons": "electron scripts/generate-icons.mjs",
+    "test:manual": "cross-env MANUAL=1 playwright test",
+    "build:inspectable": "vite build && electron-builder --dir -c.directories.output=release/inspectable -c.electronFuses.enableNodeCliInspectArguments=true"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

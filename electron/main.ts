@@ -128,6 +128,7 @@ function createWindow() {
     minHeight: 520,
     show: false,
     title: 'Task Tracker',
+    // Painted before the page's CSS loads; keep in sync with --surface-light in src/styles/tokens.css.
     backgroundColor: '#F8FAFC',
     icon: iconPath,
     autoHideMenuBar: true,
