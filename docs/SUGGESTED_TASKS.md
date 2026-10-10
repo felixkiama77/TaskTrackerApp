@@ -4,6 +4,7 @@ How a Claude Code routine (or anything else) hands tasks to Task Tracker. The ap
 
 ## Writing files
 
+- Build and write files with `scripts/write-suggestions.mjs` (usage at the top of the file). It sets `generatedAt`, checks every suggestion against these rules, and writes safely; without `--out` it only checks and prints.
 - Write one file per routine and **replace it on every run**, for example `weekly-coursework.json` and `school-email.json`. Include every item that is still relevant; leaving one out does nothing.
 - A file is processed again only when its content changes, and importing the same item twice changes nothing.
 - Keep each file under 1 MB and 300 suggestions. Only the first 50 `.json` files in the folder are read; subfolders and files starting with `.` are ignored.
