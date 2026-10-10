@@ -28,7 +28,7 @@ import { registerIpc, snapshotOf } from './ipc'
 import { createElectronNotifier } from './notifier'
 import { SoundLibrary } from './soundLibrary'
 import { ReminderScheduler, type NotificationRequest, type Notifier } from './scheduler'
-import { Store } from './store'
+import { NewerVersionError, Store } from './store'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -450,6 +450,14 @@ if (!app.requestSingleInstanceLock()) {
     .then(start)
     .catch((error: unknown) => {
       console.error('[main] Startup failed:', error)
+      if (error instanceof NewerVersionError) {
+        dialog.showErrorBox(
+          'Task Tracker needs updating',
+          'Your tasks were saved by a newer version of Task Tracker, which this version can’t open. Nothing was changed. Install the latest version of Task Tracker, then open it again.',
+        )
+        app.exit(1)
+        return
+      }
       dialog.showErrorBox(
         'Task Tracker couldn’t start',
         `Something went wrong while opening your data. Nothing was deleted.\n\n${String(error)}`,

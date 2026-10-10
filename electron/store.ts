@@ -32,6 +32,17 @@ export class UnreadableDataError extends Error {
   override name = 'UnreadableDataError'
 }
 
+/**
+ * The data file was saved by a newer version of the app. It is left exactly where it is: setting it
+ * aside and starting empty would hide the user's tasks behind an outdated install.
+ */
+export class NewerVersionError extends Error {
+  override name = 'NewerVersionError'
+  constructor(readonly version: number) {
+    super(`The data file was saved by a newer version of Task Tracker (data format ${version}).`)
+  }
+}
+
 export interface ParsedData {
   data: AppData
   quarantined: { collection: string; record: unknown; reason: string }[]
@@ -142,6 +153,9 @@ export function parseAppData(raw: unknown): ParsedData {
   if (!raw || typeof raw !== 'object') throw new UnreadableDataError('The data file is not a JSON object.')
   let doc = raw as Record<string, unknown>
   const version = doc.version
+  if (typeof version === 'number' && Number.isInteger(version) && version > CURRENT_VERSION) {
+    throw new NewerVersionError(version)
+  }
   if (version !== CURRENT_VERSION && version !== 1) {
     throw new UnreadableDataError(`Unsupported data version: ${JSON.stringify(version)}.`)
   }

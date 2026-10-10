@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { DATA_FILE, Store } from '../../electron/store'
+import { DATA_FILE, NewerVersionError, Store } from '../../electron/store'
 import { emptyAppData, type AppData } from '../../src/domain/types'
 import { makeTask } from '../unit/helpers'
 
@@ -58,12 +58,15 @@ describe('Store persistence (FR-33, FR-34, FR-38)', () => {
   })
 
   it('starts empty, but never deletes the unreadable file, when there is no usable backup', async () => {
-    await fs.writeFile(file(), JSON.stringify({ version: 99, tasks: [] }), 'utf8')
+    await fs.writeFile(file(), JSON.stringify({ version: 'two', tasks: [] }), 'utf8')
     const { store, issues } = await Store.open(dir)
     expect(issues.map((i) => i.kind)).toEqual(['reset'])
     expect(store.get().tasks).toEqual([])
     const aside = (await listDir()).find((n) => n.startsWith('task-tracker-data.unreadable-'))!
-    expect(JSON.parse(await fs.readFile(path.join(dir, aside), 'utf8'))).toEqual({ version: 99, tasks: [] })
+    expect(JSON.parse(await fs.readFile(path.join(dir, aside), 'utf8'))).toEqual({
+      version: 'two',
+      tasks: [],
+    })
   })
 
   it('quarantines invalid records instead of dropping them, and removes links to missing categories', async () => {
@@ -180,11 +183,12 @@ describe('Upgrading a version 1 data file (Difficulty → Priority)', () => {
     expect(await fs.readFile(copy, 'utf8')).toBe(original)
   })
 
-  it('still sets aside a file from a newer version instead of guessing', async () => {
-    await fs.writeFile(file(), JSON.stringify({ ...v1File(), version: 3 }), 'utf8')
-    const { store, issues } = await Store.open(dir)
-    expect(issues.map((i) => i.kind)).toEqual(['reset'])
-    expect(store.get().tasks).toEqual([])
+  it('refuses a file from a newer version and leaves it exactly where it is', async () => {
+    const newer = JSON.stringify({ ...v1File(), version: 3 })
+    await fs.writeFile(file(), newer, 'utf8')
+    await expect(Store.open(dir)).rejects.toThrow(NewerVersionError)
+    expect(await fs.readFile(file(), 'utf8')).toBe(newer)
+    expect(await listDir()).toEqual([DATA_FILE])
   })
 
   it('quarantines a v1 task whose difficulty was invalid rather than inventing a priority', async () => {
