@@ -25,7 +25,7 @@ test('the editor saves every property, and sort, filter, skip, edit and delete w
       type: 'task/create',
       input: {
         title: 'Call the bank',
-        difficulty: 'easy',
+        priority: 'low',
         dueDate: '2026-10-09',
         dueTime: '11:00',
         recurrence: { kind: 'once' },
@@ -40,7 +40,7 @@ test('the editor saves every property, and sort, filter, skip, edit and delete w
     const editor = page.getByRole('dialog', { name: 'New task' })
     await editor.getByLabel('Name', { exact: true }).fill('Gym')
     await editor.getByLabel('Due time').fill('18:00')
-    await editor.getByRole('radio', { name: 'Hard' }).check()
+    await editor.getByRole('radio', { name: 'High' }).check()
     await editor.getByLabel('Repeat').selectOption('weekly')
     await editor.getByRole('button', { name: 'Monday' }).click() // Thursday is preselected from the due date
     await editor.getByRole('radio', { name: 'After' }).check()
@@ -58,7 +58,7 @@ test('the editor saves every property, and sort, filter, skip, edit and delete w
     const created = (await snapshot(page)).data
     const gym = created.tasks.find((t) => t.title === 'Gym')!
     expect(gym).toMatchObject({
-      difficulty: 'hard',
+      priority: 'high',
       startDate: '2026-10-08',
       dueTime: '18:00',
       recurrence: { kind: 'weekly', weekdays: [1, 4] },
@@ -69,13 +69,13 @@ test('the editor saves every property, and sort, filter, skip, edit and delete w
     const gymRow = page.locator('.task-row', { hasText: 'Gym' }).first()
     await expect(gymRow).toContainText('Mon, Thu')
     await expect(gymRow).toContainText('Health')
-    await expect(gymRow).toContainText('Hard')
+    await expect(gymRow).toContainText('High')
 
-    // Sorting by difficulty, both directions.
+    // Sorting by priority, both directions.
     const titles = () => page.locator('.task-row__title').allInnerTexts()
-    await page.getByLabel('Sort by').selectOption('difficulty-desc')
+    await page.getByLabel('Sort by').selectOption('priority-desc')
     await expect.poll(titles).toEqual(['Gym', 'Call the bank'])
-    await page.getByLabel('Sort by').selectOption('difficulty-asc')
+    await page.getByLabel('Sort by').selectOption('priority-asc')
     await expect.poll(titles).toEqual(['Call the bank', 'Gym'])
     await page.getByLabel('Sort by').selectOption('due-asc')
 

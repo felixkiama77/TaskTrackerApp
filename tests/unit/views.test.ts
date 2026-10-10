@@ -110,10 +110,10 @@ describe('category filter (FR-13)', () => {
 
 describe('sorting (FR-11, FR-12)', () => {
   const tasks = [
-    makeTask({ id: 'dateOnly', title: 'A', startDate: '2026-10-08', dueTime: null, difficulty: 'hard' }),
-    makeTask({ id: 'evening', title: 'B', startDate: '2026-10-08', dueTime: '20:00', difficulty: 'easy' }),
-    makeTask({ id: 'morning', title: 'C', startDate: '2026-10-08', dueTime: '08:00', difficulty: 'hard' }),
-    makeTask({ id: 'tomorrow', title: 'D', startDate: '2026-10-09', dueTime: '07:00', difficulty: 'medium' }),
+    makeTask({ id: 'dateOnly', title: 'A', startDate: '2026-10-08', dueTime: null, priority: 'high' }),
+    makeTask({ id: 'evening', title: 'B', startDate: '2026-10-08', dueTime: '20:00', priority: 'low' }),
+    makeTask({ id: 'morning', title: 'C', startDate: '2026-10-08', dueTime: '08:00', priority: 'high' }),
+    makeTask({ id: 'tomorrow', title: 'D', startDate: '2026-10-09', dueTime: '07:00', priority: 'medium' }),
   ]
   const occs = occurrencesForView(tasks, 'all', at('2026-10-08', '06:00'), 1)
   const ids = (list: { taskId: string }[]) => list.map((o) => o.taskId)
@@ -136,14 +136,14 @@ describe('sorting (FR-11, FR-12)', () => {
     ])
   })
 
-  it('difficulty sorts Easy → Hard (or reverse) and breaks ties by due date', () => {
-    expect(ids(sortOccurrences(occs, { key: 'difficulty', direction: 'asc' }))).toEqual([
+  it('priority sorts Low → High (or reverse) and breaks ties by due date', () => {
+    expect(ids(sortOccurrences(occs, { key: 'priority', direction: 'asc' }))).toEqual([
       'evening',
       'tomorrow',
       'morning',
       'dateOnly',
     ])
-    expect(ids(sortOccurrences(occs, { key: 'difficulty', direction: 'desc' }))).toEqual([
+    expect(ids(sortOccurrences(occs, { key: 'priority', direction: 'desc' }))).toEqual([
       'morning',
       'dateOnly',
       'tomorrow',

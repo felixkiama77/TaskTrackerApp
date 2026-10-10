@@ -3,7 +3,7 @@ import { launchApp, tempUserData } from './fixtures'
 
 const input = {
   title: 'Submit assignment',
-  difficulty: 'hard',
+  priority: 'high',
   dueDate: '2026-10-09',
   dueTime: '17:00',
   recurrence: { kind: 'once' },
@@ -24,16 +24,22 @@ test('the page only sees the narrow taskTracker API (FR-26, Electron security)',
     }))
     expect(exposed).toEqual({
       api: [
+        'checkImportsNow',
+        'chooseImportFolder',
         'chooseSound',
+        'clearImportFolder',
         'dispatch',
         'getAppInfo',
+        'getImportStatus',
         'getSnapshot',
         'importLegacy',
         'onAlert',
+        'onImportChecked',
         'onNavigate',
         'onSnapshot',
         'onWindowVisibility',
         'openDataFolder',
+        'openTaskLink',
         'removeSound',
         'reportAudio',
         'testNotification',
@@ -74,6 +80,41 @@ test('the page only sees the narrow taskTracker API (FR-26, Electron security)',
         window.taskTracker.reportAudio({ customNotificationSounds: ['../../evil'] } as never),
       ),
     ).rejects.toThrow()
+
+    // Only a link stored on an existing task can be opened, never an arbitrary URL.
+    const opened = await page.evaluate(async () => {
+      await window.taskTracker.dispatch({
+        type: 'task/create',
+        input: {
+          title: 'No link',
+          priority: 'medium',
+          dueDate: '2026-10-09',
+          dueTime: null,
+          recurrence: { kind: 'once' },
+          end: { kind: 'never' },
+          categoryIds: [],
+          reminders: [],
+        },
+      })
+      const [task] = (await window.taskTracker.getSnapshot()).data.tasks
+      return Promise.all([
+        window.taskTracker.openTaskLink(task.id),
+        window.taskTracker.openTaskLink('no-such-task'),
+      ])
+    })
+    expect(opened).toEqual([false, false])
+    await expect(
+      page.evaluate(() => window.taskTracker.openTaskLink({ url: 'https://evil.example' } as never)),
+    ).rejects.toThrow()
+    expect(
+      await app.evaluate(
+        () => (globalThis as { __taskTrackerOpenedLinks?: string[] }).__taskTrackerOpenedLinks,
+      ),
+    ).toBeUndefined()
+    await page.evaluate(async () => {
+      const [task] = (await window.taskTracker.getSnapshot()).data.tasks
+      await window.taskTracker.dispatch({ type: 'task/delete', taskId: task.id, scope: { kind: 'series' } })
+    })
 
     // New windows and navigation away from the app are blocked.
     expect(await page.evaluate(() => window.open('https://example.com') === null)).toBe(true)

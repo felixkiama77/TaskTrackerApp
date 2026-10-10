@@ -12,7 +12,9 @@ const nav = (page: Page, label: string) =>
     .click()
 
 const baseInput = {
-  difficulty: 'medium' as const,
+  priority: 'medium' as const,
+  notes: '',
+  link: null,
   dueTime: null,
   recurrence: { kind: 'once' as const },
   end: { kind: 'never' as const },
@@ -34,13 +36,13 @@ test('create, validate, complete, undo, and find the task in Completed after a r
     // Create.
     await page.getByLabel('Name', { exact: true }).fill('Buy groceries')
     await page.getByLabel('Due time').fill('18:00')
-    await page.getByRole('radio', { name: 'Hard' }).check()
+    await page.getByRole('radio', { name: 'High' }).check()
     await page.getByRole('button', { name: 'Create task' }).click()
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await expect(page.getByRole('status').filter({ hasText: 'Task created.' })).toBeVisible()
     const row = page.locator('.task-row', { hasText: 'Buy groceries' })
     await expect(row).toContainText('Due today')
-    await expect(row).toContainText('Hard')
+    await expect(row).toContainText('High')
 
     // Complete, then undo.
     await page.getByRole('checkbox', { name: 'Mark “Buy groceries” complete' }).click()

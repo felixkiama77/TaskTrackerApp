@@ -10,12 +10,13 @@ A desktop task tracker for Windows, built with Electron. It covers one-time and 
 
 ## Features
 
-- **Tasks** with a name, due date and optional time, difficulty (Easy / Medium / Hard), categories and reminders.
+- **Tasks** with a name, due date and optional time, priority (Low / Medium / High), categories, reminders, and optional notes and a link.
 - **Repeats** daily, on selected weekdays, or monthly (the 29th–31st fall back to the last day of shorter months). A repeat can run forever or for a set number of times.
-- **Views**: All tasks, Today, Next 3 days, This week, Overdue, Calendar (month or agenda), and Completed. Each view can be sorted by due date or difficulty and filtered by category.
+- **Views**: All tasks, Today, Next 3 days, This week, Overdue, Calendar (month or agenda), and Completed. Each view can be sorted by due date or priority and filtered by category.
 - **Repeating tasks** can be edited or deleted for one occurrence, or for that occurrence and the ones after it. Missed occurrences stay overdue until you complete or skip them; "Skip all missed" clears a backlog.
 - **Completion history** records when each task was done and whether that was early, on time or late. Records are kept for 90 days, and completing a task can be undone.
 - **Reminders** arrive as Windows notifications, together with a short glowing edge around the window. They keep working while the app sits in the system tray. Anything missed while the app was closed is summed up in one notice.
+- **Suggested tasks**: Claude Code routines can suggest tasks, such as upcoming assignments, by writing a file to a synced folder (for example in Google Drive). Choose the folder in Settings › Suggested tasks. New items are added automatically, your own edits are never overwritten, and nothing is ever deleted. The file format is in [`docs/SUGGESTED_TASKS.md`](docs/SUGGESTED_TASKS.md).
 - **Sounds**: choose your own file for each kind of notification and each action, and add a playlist of background music. All of this is in Settings › Sound.
 - **Data** is saved in one file in `%APPDATA%\tasktracker`, written safely and backed up. Tasks saved by the earlier version of the app are imported automatically the first time.
 
@@ -62,6 +63,7 @@ The end-to-end tests also save screenshots of every screen to `test-results/scre
 | `tests/`                      | Unit, integration, end-to-end and manual tests.                                                                                                                        |
 | `docs/specs/`                 | The design and feature specifications this app was built to.                                                                                                           |
 | `docs/DECISIONS.md`           | Product decisions made along the way (e.g. how repeat counts and the "Next 3 days" range work).                                                                        |
+| `docs/SUGGESTED_TASKS.md`     | The file format routines use to suggest tasks.                                                                                                                         |
 | `docs/VERIFICATION_MATRIX.md` | How each requirement was verified.                                                                                                                                     |
 
 ### Your data
@@ -70,6 +72,7 @@ Everything is stored in `%APPDATA%\tasktracker`:
 
 - `task-tracker-data.json` holds tasks, categories, completion history and settings.
 - `task-tracker-data.json.bak` is a backup, refreshed at startup and every hour.
+- `task-tracker-data.v1-before-upgrade.json` (if present) is your data exactly as it was before the update that replaced Difficulty with Priority.
 - `sounds\` holds the sound files you chose in Settings.
 
 If the data file can't be read, the app restores the backup and keeps the unreadable file under a new name. It never overwrites or deletes it. Settings › Your data › Open folder takes you there.

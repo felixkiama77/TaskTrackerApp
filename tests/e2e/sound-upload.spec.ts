@@ -84,7 +84,7 @@ test('choose event sounds and music tracks in Settings, hear them, and keep them
       type: 'task/create',
       input: {
         title: 'Practice scales',
-        difficulty: 'easy',
+        priority: 'low',
         dueDate: '2026-10-08',
         dueTime: null,
         recurrence: { kind: 'once' },

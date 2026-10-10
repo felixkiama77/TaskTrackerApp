@@ -1,10 +1,10 @@
 import type { Page } from '@playwright/test'
-import type { Command, TaskInput } from '../../src/domain/schemas'
+import type { CommandInput, TaskInput } from '../../src/domain/schemas'
 
 /** "Now" for seeded scenarios: Thursday 8 Oct 2026, 10:00 in US Pacific time (UTC-7). */
 export const FAKE_NOW = '2026-10-08T17:00:00.000Z'
 
-export async function dispatch(page: Page, command: Command) {
+export async function dispatch(page: Page, command: CommandInput) {
   const result = await page.evaluate((c) => window.taskTracker.dispatch(c), command)
   if (!result.ok) throw new Error(`${command.type} failed: ${result.error}`)
   return result
@@ -12,7 +12,9 @@ export async function dispatch(page: Page, command: Command) {
 
 const task = (overrides: Partial<TaskInput>): TaskInput => ({
   title: 'Task',
-  difficulty: 'medium',
+  priority: 'medium',
+  notes: '',
+  link: null,
   dueDate: '2026-10-08',
   dueTime: null,
   recurrence: { kind: 'once' },
@@ -32,7 +34,7 @@ export async function seedRealisticData(page: Page) {
   const tasks: TaskInput[] = [
     task({
       title: 'Submit history essay',
-      difficulty: 'hard',
+      priority: 'high',
       dueDate: '2026-10-09',
       dueTime: '17:00',
       categoryIds: [cat('School')],
@@ -46,7 +48,7 @@ export async function seedRealisticData(page: Page) {
     }),
     task({
       title: 'Team standup notes',
-      difficulty: 'easy',
+      priority: 'low',
       dueDate: '2026-10-06',
       dueTime: '09:30',
       recurrence: { kind: 'daily' },
@@ -63,14 +65,14 @@ export async function seedRealisticData(page: Page) {
     }),
     task({
       title: 'Water the plants',
-      difficulty: 'easy',
+      priority: 'low',
       dueDate: '2026-10-08',
       recurrence: { kind: 'weekly', weekdays: [4] },
       categoryIds: [cat('Home')],
     }),
     task({
       title: 'Pay rent',
-      difficulty: 'hard',
+      priority: 'high',
       dueDate: '2026-08-31',
       recurrence: { kind: 'monthly', dayOfMonth: 31 },
       categoryIds: [cat('Home')],
@@ -88,11 +90,11 @@ export async function seedRealisticData(page: Page) {
       dueDate: '2026-10-10',
       categoryIds: [cat('School')],
     }),
-    task({ title: 'Return library books', difficulty: 'easy', dueDate: '2026-10-12' }),
-    task({ title: 'Call grandma', difficulty: 'easy', dueDate: '2026-10-08' }),
+    task({ title: 'Return library books', priority: 'low', dueDate: '2026-10-12' }),
+    task({ title: 'Call grandma', priority: 'low', dueDate: '2026-10-08' }),
     task({
       title: 'Quarterly report draft',
-      difficulty: 'hard',
+      priority: 'high',
       dueDate: '2026-10-14',
       dueTime: '12:00',
       categoryIds: [cat('Work'), cat('School')],

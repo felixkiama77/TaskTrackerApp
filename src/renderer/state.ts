@@ -1,6 +1,7 @@
 import { localDateOf, localeWeekStart, startOfMonth, type LocalDate, type Weekday } from '../domain/dates'
 import { emptyAppData, type AppData } from '../domain/types'
 import type { ListView, SortOrder } from '../domain/views'
+import type { ImportStatus } from '../shared/api'
 import { clock } from './clock'
 
 /**
@@ -51,14 +52,20 @@ function savePrefs(ui: UiState) {
   }
 }
 
-const isSort = (value: unknown): value is SortOrder =>
-  typeof value === 'object' &&
-  value !== null &&
-  ['due', 'difficulty'].includes((value as SortOrder).key) &&
-  ['asc', 'desc'].includes((value as SortOrder).direction)
+/** A saved sort order; one saved before Priority replaced Difficulty becomes the matching Priority sort. */
+function savedSort(value: unknown): SortOrder | null {
+  if (typeof value !== 'object' || value === null) return null
+  const { key, direction } = value as { key?: unknown; direction?: unknown }
+  if (direction !== 'asc' && direction !== 'desc') return null
+  if (key === 'due' || key === 'priority') return { key, direction }
+  if (key === 'difficulty') return { key: 'priority', direction }
+  return null
+}
 
 class AppState {
   data: AppData = emptyAppData()
+  /** Suggested-task folder status from the main process (not saved data). */
+  importStatus: ImportStatus | null = null
   ui: UiState
   private listeners = new Set<() => void>()
 
@@ -66,7 +73,7 @@ class AppState {
     const prefs = loadPrefs()
     this.ui = {
       route: { name: 'list', view: 'all' },
-      sort: isSort(prefs.sort) ? prefs.sort : { key: 'due', direction: 'asc' },
+      sort: savedSort(prefs.sort) ?? { key: 'due', direction: 'asc' },
       categoryFilter: new Set(),
       archiveOrder: prefs.archiveOrder === 'oldest' ? 'oldest' : 'newest',
       calendarMonth: startOfMonth(localDateOf(clock.now())),
@@ -92,6 +99,11 @@ class AppState {
   setUi(patch: Partial<UiState>) {
     this.ui = { ...this.ui, ...patch }
     savePrefs(this.ui)
+    this.emit()
+  }
+
+  setImportStatus(status: ImportStatus) {
+    this.importStatus = status
     this.emit()
   }
 

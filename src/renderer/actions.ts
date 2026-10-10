@@ -1,7 +1,8 @@
 import { formatLongDate } from '../domain/format'
 import { overdueOccurrences, type Occurrence } from '../domain/occurrences'
-import type { Command } from '../domain/schemas'
+import type { Command, CommandInput } from '../domain/schemas'
 import type { SoundSlot } from '../domain/sounds'
+import type { ImportReport } from '../domain/types'
 import type { DispatchResult, SoundImportResult, TaskTrackerApi } from '../shared/api'
 import type { EffectCue } from './audio/catalog'
 import type { SoundPlayer } from './audio/player'
@@ -41,7 +42,7 @@ export class Actions {
     return this.toaster.show(options)
   }
 
-  async dispatch(command: Command, options: { quiet?: boolean } = {}): Promise<DispatchResult> {
+  async dispatch(command: CommandInput, options: { quiet?: boolean } = {}): Promise<DispatchResult> {
     let result: DispatchResult
     try {
       result = await this.api.dispatch(command)
@@ -237,6 +238,95 @@ export class Actions {
     } catch {
       this.toast({ tone: 'error', title: 'Couldn’t open the data folder' })
     }
+  }
+
+  async openTaskLink(taskId: string) {
+    try {
+      if (await this.api.openTaskLink(taskId)) return
+    } catch (error) {
+      console.error('[actions] open link failed', error)
+    }
+    this.toast({ tone: 'error', title: 'Couldn’t open the link' })
+  }
+
+  async chooseImportFolder() {
+    try {
+      const result = await this.api.chooseImportFolder()
+      state.setImportStatus(result.status)
+      if (!result.cancelled && !result.status.folderError)
+        this.toast({
+          tone: 'success',
+          title: 'Folder saved',
+          body: 'Task Tracker checks it every few minutes.',
+        })
+    } catch (error) {
+      console.error('[actions] choose folder failed', error)
+      this.toast({ tone: 'error', title: 'Couldn’t save the folder', body: 'Please try again.' })
+    }
+  }
+
+  async clearImportFolder() {
+    try {
+      state.setImportStatus(await this.api.clearImportFolder())
+      this.toast({
+        tone: 'success',
+        title: 'Folder removed',
+        body: 'Tasks already added are kept. No more suggestions will be read.',
+      })
+    } catch (error) {
+      console.error('[actions] clear folder failed', error)
+      this.toast({ tone: 'error', title: 'Couldn’t remove the folder', body: 'Please try again.' })
+    }
+  }
+
+  async checkImportsNow() {
+    try {
+      const { status, reports } = await this.api.checkImportsNow()
+      state.setImportStatus(status)
+      // Reports are announced by the importChecked event; only say so when there was nothing new.
+      if (reports.length === 0 && !status.folderError)
+        this.toast({ tone: 'info', title: 'No new suggestions', duration: 3000 })
+    } catch (error) {
+      console.error('[actions] check folder failed', error)
+      this.toast({ tone: 'error', title: 'Couldn’t check the folder', body: 'Please try again.' })
+    }
+  }
+
+  /** One toast summarizing what a check imported; quiet when files changed but nothing was added or updated. */
+  announceImports(reports: ImportReport[], openSettings: () => void) {
+    const failed = reports.filter((r) => r.error !== null)
+    const created = reports.reduce((n, r) => n + r.created, 0)
+    const updated = reports.reduce((n, r) => n + r.updated, 0)
+    const needsLook = reports.some((r) => r.notes.length > 0)
+    const view = [{ label: 'Details', onClick: openSettings }]
+    if (failed.length > 0) {
+      this.toast({
+        tone: 'error',
+        title:
+          failed.length === 1
+            ? 'A suggestions file couldn’t be read'
+            : 'Some suggestions files couldn’t be read',
+        body: failed[0].error ?? undefined,
+        duration: 12_000,
+        actions: view,
+      })
+    }
+    if (created + updated === 0 && !needsLook) return
+    const parts = [
+      created > 0 && (created === 1 ? '1 task added' : `${created} tasks added`),
+      updated > 0 && (updated === 1 ? '1 task updated' : `${updated} tasks updated`),
+    ].filter(Boolean)
+    const origins = [...new Set(reports.map((r) => r.origin).filter(Boolean))]
+    this.toast({
+      tone: created + updated > 0 ? 'success' : 'info',
+      title: parts.length ? `Suggested tasks: ${parts.join(', ')}` : 'Suggested tasks checked',
+      body:
+        [origins.length ? `From ${origins.join(' and ')}.` : '', needsLook ? 'Some items need a look.' : '']
+          .filter(Boolean)
+          .join(' ') || undefined,
+      duration: 10_000,
+      actions: view,
+    })
   }
 
   private offerRestore(occ: Occurrence, title: string) {

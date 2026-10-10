@@ -11,7 +11,7 @@ import {
   UserSoundEntrySchema,
   UserTrackSchema,
 } from '../src/domain/schemas'
-import { emptyAppData, type AppData } from '../src/domain/types'
+import { emptyAppData, emptyImportState, type AppData, type ImportState } from '../src/domain/types'
 import type { StartupIssue } from '../src/shared/api'
 
 /**
@@ -24,7 +24,9 @@ import type { StartupIssue } from '../src/shared/api'
  *   backup or an empty state.
  */
 export const DATA_FILE = 'task-tracker-data.json'
-const CURRENT_VERSION = 1
+/** A copy of the file as it was before an upgrade changed its format. Written once, never overwritten. */
+export const PRE_UPGRADE_COPY = (version: number) => `task-tracker-data.v${version}-before-upgrade.json`
+const CURRENT_VERSION = 2
 
 export class UnreadableDataError extends Error {
   override name = 'UnreadableDataError'
@@ -33,6 +35,63 @@ export class UnreadableDataError extends Error {
 export interface ParsedData {
   data: AppData
   quarantined: { collection: string; record: unknown; reason: string }[]
+  /** The file's version when it was older than this app's and was upgraded while loading. */
+  upgradedFrom: number | null
+}
+
+const V1_PRIORITY: Record<string, string> = { easy: 'low', medium: 'medium', hard: 'high' }
+
+/**
+ * Version 1 → 2: "difficulty" became "priority" (Easy → Low, Medium → Medium, Hard → High) and tasks
+ * gained notes, a link and an import source. Records are only reshaped here; they are validated after.
+ */
+function upgradeFromV1(doc: Record<string, unknown>): Record<string, unknown> {
+  const reshape = (record: unknown, isTask: boolean): unknown => {
+    if (!record || typeof record !== 'object' || Array.isArray(record)) return record
+    const { difficulty, ...rest } = record as Record<string, unknown>
+    const priority = typeof difficulty === 'string' ? V1_PRIORITY[difficulty] : undefined
+    return isTask ? { ...rest, priority, notes: '', link: null, source: null } : { ...rest, priority }
+  }
+  return {
+    ...doc,
+    version: 2,
+    tasks: (doc.tasks as unknown[]).map((t) => reshape(t, true)),
+    archive: (doc.archive as unknown[]).map((r) => reshape(r, false)),
+  }
+}
+
+const ImportReportSchema = z.object({
+  file: z.string().max(260),
+  origin: z.string().max(100),
+  at: IsoTimestampSchema,
+  error: z.string().max(500).nullable(),
+  created: z.number().int().min(0),
+  updated: z.number().int().min(0),
+  unchanged: z.number().int().min(0),
+  notes: z.array(z.string().max(500)).max(200),
+})
+
+function parseImports(raw: unknown): ImportState {
+  const state = emptyImportState()
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return state
+  const doc = raw as Record<string, unknown>
+  const strings = z.record(z.string().max(400), z.string().max(200))
+  state.folder = z
+    .string()
+    .min(1)
+    .max(1000)
+    .nullable()
+    .catch(null)
+    .parse(doc.folder ?? null)
+  state.seen = strings.catch({}).parse(doc.seen)
+  state.files = strings.catch({}).parse(doc.files)
+  if (Array.isArray(doc.reports)) {
+    for (const report of doc.reports.slice(0, 20)) {
+      const parsed = ImportReportSchema.safeParse(report)
+      if (parsed.success) state.reports.push(parsed.data)
+    }
+  }
+  return state
 }
 
 const AlertsSchema = z.object({
@@ -81,13 +140,15 @@ const MetaSchema = z.object({ legacyImportedAt: IsoTimestampSchema.nullable().ca
  */
 export function parseAppData(raw: unknown): ParsedData {
   if (!raw || typeof raw !== 'object') throw new UnreadableDataError('The data file is not a JSON object.')
-  const doc = raw as Record<string, unknown>
-  if (doc.version !== CURRENT_VERSION) {
-    throw new UnreadableDataError(`Unsupported data version: ${JSON.stringify(doc.version)}.`)
+  let doc = raw as Record<string, unknown>
+  const version = doc.version
+  if (version !== CURRENT_VERSION && version !== 1) {
+    throw new UnreadableDataError(`Unsupported data version: ${JSON.stringify(version)}.`)
   }
   for (const key of ['tasks', 'categories', 'archive'] as const) {
     if (!Array.isArray(doc[key])) throw new UnreadableDataError(`The data file has no "${key}" list.`)
   }
+  if (version === 1) doc = upgradeFromV1(doc)
 
   const quarantined: ParsedData['quarantined'] = []
   const keepValid = <T>(collection: string, items: unknown[], schema: z.ZodType<T>): T[] => {
@@ -131,9 +192,11 @@ export function parseAppData(raw: unknown): ParsedData {
       settings: SettingsSchema.parse(objectOrEmpty(doc.settings)),
       sounds: parseSounds(doc.sounds),
       alerts: AlertsSchema.parse(objectOrEmpty(doc.alerts)),
+      imports: parseImports(doc.imports),
       meta: MetaSchema.parse(objectOrEmpty(doc.meta)),
     },
     quarantined,
+    upgradedFrom: version === CURRENT_VERSION ? null : version,
   }
 }
 
@@ -227,9 +290,19 @@ export class Store {
       })
     }
 
+    // Before an upgrade rewrites the file in the new format, keep the original exactly as it was.
+    // `.bak` is refreshed on every launch, so it can't serve as this copy.
+    if (parsed?.upgradedFrom) {
+      const copy = path.join(directory, PRE_UPGRADE_COPY(parsed.upgradedFrom))
+      await fs.copyFile(backup, copy, fs.constants.COPYFILE_EXCL).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== 'EEXIST') throw error
+      })
+    }
+
     const store = new Store(directory, parsed?.data ?? emptyAppData())
-    // Persist any repairs (or create the file) so what is on disk matches what is in memory.
-    if (!parsed || parsed.quarantined.length > 0 || issues.length > 0) await store.replace(store.data)
+    // Persist any repairs or upgrade (or create the file) so what is on disk matches what is in memory.
+    if (!parsed || parsed.upgradedFrom || parsed.quarantined.length > 0 || issues.length > 0)
+      await store.replace(store.data)
     return { store, issues }
   }
 

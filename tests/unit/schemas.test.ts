@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CommandSchema, fieldErrors, TaskInputSchema } from '../../src/domain/schemas'
+import { describeReminder } from '../../src/domain/format'
 import { makeInput } from './helpers'
 
 const errorsFor = (input: unknown) => {
@@ -25,8 +26,8 @@ describe('task input validation (FR-1, FR-36)', () => {
         'end.count': 'A task occurs at least once.',
       },
     )
-    expect(errorsFor({ ...makeInput(), difficulty: undefined })).toEqual({
-      difficulty: 'Choose a difficulty.',
+    expect(errorsFor({ ...makeInput(), priority: undefined })).toEqual({
+      priority: 'Choose a priority.',
     })
   })
 
@@ -46,5 +47,43 @@ describe('IPC command validation (FR-26)', () => {
     expect(
       CommandSchema.safeParse({ type: 'occurrence/complete', taskId: 't', key: '2026-10-08' }).success,
     ).toBe(true)
+  })
+})
+
+describe('notes, links and the new reminder times', () => {
+  it('accepts an https link and empty notes, and fills them in when left out', () => {
+    const parsed = TaskInputSchema.parse({ ...makeInput(), notes: undefined, link: undefined })
+    expect(parsed).toMatchObject({ notes: '', link: null })
+    expect(
+      TaskInputSchema.safeParse({ ...makeInput(), link: 'https://canvas.uw.edu/courses/1' }).success,
+    ).toBe(true)
+  })
+
+  it('rejects links that are not https, or that carry a username or password', () => {
+    for (const link of [
+      'http://example.com',
+      'javascript:alert(1)',
+      'file:///C:/x',
+      'example.com',
+      'https://a:b@example.com',
+    ]) {
+      expect(errorsFor({ ...makeInput(), link })).toEqual({
+        link: 'Enter a full link starting with https://',
+      })
+    }
+  })
+
+  it('limits notes to 1,000 characters', () => {
+    expect(errorsFor({ ...makeInput(), notes: 'x'.repeat(1001) })).toEqual({
+      notes: 'Keep notes under 1,000 characters.',
+    })
+  })
+
+  it('offers reminders 6 and 12 hours before', () => {
+    expect(
+      TaskInputSchema.safeParse({ ...makeInput(), dueTime: '23:59', reminders: [360, 720] }).success,
+    ).toBe(true)
+    expect(describeReminder(360, true)).toBe('6 hours before')
+    expect(describeReminder(720, true)).toBe('12 hours before')
   })
 })

@@ -203,7 +203,9 @@ function taskFromInput(input: TaskInput, data: AppData, id: string, now: number)
   return {
     id,
     title: input.title.trim(),
-    difficulty: input.difficulty,
+    priority: input.priority,
+    notes: input.notes.trim(),
+    link: input.link === null || input.link.trim() === '' ? null : input.link.trim(),
     // A category deleted while the editor was open is simply dropped.
     categoryIds: input.categoryIds.filter((cid) => known.has(cid)),
     startDate: input.dueDate,
@@ -214,6 +216,7 @@ function taskFromInput(input: TaskInput, data: AppData, id: string, now: number)
     reminders: [...input.reminders].sort((a, b) => a - b),
     completed: {},
     exceptions: {},
+    source: null,
     createdAt: iso,
     updatedAt: iso,
   }
@@ -276,10 +279,10 @@ function updateTask(
   return 'This and future occurrences were updated.'
 }
 
-/** Applies new definition fields while keeping identity and per-occurrence history. */
+/** Applies new definition fields while keeping identity, per-occurrence history and where it came from. */
 function replaceDefinition(task: TaskDefinition, updated: TaskDefinition) {
-  const { completed, exceptions, createdAt, id } = task
-  Object.assign(task, updated, { id, completed, exceptions, createdAt })
+  const { completed, exceptions, createdAt, id, source } = task
+  Object.assign(task, updated, { id, completed, exceptions, createdAt, source })
 }
 
 function deleteTask(data: AppData, taskId: string, scope: DeleteScope): string {

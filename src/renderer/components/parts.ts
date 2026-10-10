@@ -1,7 +1,7 @@
 import markUrl from '../../assets/brand/task-tracker-mark.svg'
 import mark32Url from '../../assets/brand/task-tracker-mark-32.svg'
 import type { OccurrenceStatus } from '../../domain/occurrences'
-import { DIFFICULTY_LABEL, type CompletionClassification, type Difficulty } from '../../domain/types'
+import { PRIORITY_LABEL, type CompletionClassification, type Priority } from '../../domain/types'
 import { h, icon, type Child } from '../dom'
 import type { IconNode } from 'lucide'
 import { CircleCheck, Clock, Info, Sun, TriangleAlert } from '../icons'
@@ -39,12 +39,12 @@ export function classificationBadge(classification: CompletionClassification): H
   return h('span', { class: `status-badge status-badge--${tone}` }, icon(node, 13), label)
 }
 
-export function difficultyChip(difficulty: Difficulty): HTMLElement {
+export function priorityChip(priority: Priority): HTMLElement {
   return h(
     'span',
-    { class: 'chip chip--difficulty', title: 'Difficulty' },
-    h('span', { class: 'visually-hidden' }, 'Difficulty: '),
-    DIFFICULTY_LABEL[difficulty],
+    { class: 'chip chip--priority', title: 'Priority', dataset: { priority } },
+    h('span', { class: 'visually-hidden' }, 'Priority: '),
+    PRIORITY_LABEL[priority],
   )
 }
 

@@ -65,11 +65,11 @@ describe('legacy localStorage import (FR-34)', () => {
       title: 'ppp',
       startDate: '2026-06-24',
       dueTime: '16:00',
-      difficulty: 'medium',
+      priority: 'medium',
     })
     expect(ppp.categoryIds).toHaveLength(2)
-    expect(testing).toMatchObject({ difficulty: 'easy', categoryIds: [] })
-    expect(done).toMatchObject({ difficulty: 'hard', dueTime: null, startDate: '2026-06-25' })
+    expect(testing).toMatchObject({ priority: 'low', categoryIds: [] })
+    expect(done).toMatchObject({ priority: 'high', dueTime: null, startDate: '2026-06-25' })
     expect(untitled).toMatchObject({ title: 'Untitled task', startDate: '2026-10-08' })
 
     // Completed tasks go to the archive with an honest "unknown" timing and are not overdue.

@@ -4,7 +4,7 @@ import {
   MAX_TASKS,
   type AppData,
   type ArchiveRecord,
-  type Difficulty,
+  type Priority,
   type TaskDefinition,
 } from './types'
 
@@ -39,7 +39,7 @@ interface LegacyTask {
   priority?: unknown
 }
 
-const PRIORITY_TO_DIFFICULTY: Record<string, Difficulty> = { low: 'easy', normal: 'medium', high: 'hard' }
+const LEGACY_PRIORITY: Record<string, Priority> = { low: 'low', normal: 'medium', high: 'high' }
 
 function parseArray(json: string | null): unknown[] {
   if (!json) return []
@@ -121,7 +121,9 @@ export function importLegacyData(
     const task: TaskDefinition = {
       id: ctx.newId(),
       title,
-      difficulty: PRIORITY_TO_DIFFICULTY[priority] ?? 'medium',
+      priority: LEGACY_PRIORITY[priority] ?? 'medium',
+      notes: '',
+      link: null,
       categoryIds,
       startDate: due.date,
       dueTime: due.time,
@@ -131,6 +133,7 @@ export function importLegacyData(
       reminders: [],
       completed: {},
       exceptions: {},
+      source: null,
       createdAt: nowIso,
       updatedAt: nowIso,
     }
@@ -142,7 +145,7 @@ export function importLegacyData(
         taskId: task.id,
         occurrenceKey: due.date,
         title,
-        difficulty: task.difficulty,
+        priority: task.priority,
         categoryIds,
         categoryNames: categoryIds.map((id) => next.categories.find((c) => c.id === id)?.name ?? ''),
         dueDate: due.date,

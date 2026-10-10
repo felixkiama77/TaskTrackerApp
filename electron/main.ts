@@ -17,7 +17,13 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { runMaintenance } from '../src/domain/commands'
 import type { AppData } from '../src/domain/types'
-import { Channels, type AlertMessage, type NavigateMessage } from '../src/shared/api'
+import {
+  Channels,
+  type AlertMessage,
+  type ImportCheckedMessage,
+  type NavigateMessage,
+} from '../src/shared/api'
+import { SuggestionImporter } from './importer'
 import { registerIpc, snapshotOf } from './ipc'
 import { createElectronNotifier } from './notifier'
 import { SoundLibrary } from './soundLibrary'
@@ -82,6 +88,7 @@ let win: BrowserWindow | null = null
 let tray: Tray | null = null
 let store: Store | null = null
 let scheduler: ReminderScheduler | null = null
+let importer: SuggestionImporter | null = null
 let notifier: Notifier | null = null
 let quitting = false
 let readyToExit = false
@@ -300,6 +307,21 @@ async function start() {
   })
   scheduler = activeScheduler
 
+  const activeImporter = new SuggestionImporter({
+    store: openedStore,
+    now,
+    newId: randomUUID,
+    onChanged: (_previous, next) => {
+      send(Channels.snapshot, snapshotOf(next, []))
+      void activeScheduler.check()
+    },
+    onChecked: (status, reports) => {
+      const message: ImportCheckedMessage = { status, reports }
+      send(Channels.importChecked, message)
+    },
+  })
+  importer = activeImporter
+
   registerIpc({
     store: openedStore,
     issues: opened.issues,
@@ -352,6 +374,27 @@ async function start() {
     setAudioReport: (report) => {
       customNotificationSounds = new Set(report.customNotificationSounds)
     },
+    importer: activeImporter,
+    pickFolder: async () => {
+      // Tests supply the folder instead of the system dialog.
+      const testFolder = TEST_MODE ? process.env.TASK_TRACKER_TEST_PICK_FOLDER : undefined
+      if (testFolder !== undefined) return testFolder || null
+      const options: Electron.OpenDialogOptions = {
+        title: 'Choose the folder for suggested tasks',
+        properties: ['openDirectory'],
+      }
+      const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+      return result.canceled ? null : (result.filePaths[0] ?? null)
+    },
+    openExternal: async (url) => {
+      // Tests record links instead of opening a browser.
+      if (TEST_MODE) {
+        const log = ((globalThis as { __taskTrackerOpenedLinks?: string[] }).__taskTrackerOpenedLinks ??= [])
+        log.push(url)
+        return
+      }
+      await shell.openExternal(url)
+    },
     openDataFolder: async () => {
       const error = await shell.openPath(app.getPath('userData'))
       if (error) throw new Error(error)
@@ -362,10 +405,17 @@ async function start() {
   createTray()
   applyLoginItem(openedStore.get().settings)
   activeScheduler.start()
+  activeImporter.start()
 
-  // Re-check reminders after sleep or a locked session (FR-23, FR-29).
-  powerMonitor.on('resume', () => void activeScheduler.check())
-  powerMonitor.on('unlock-screen', () => void activeScheduler.check())
+  // Re-check reminders (FR-23, FR-29) and the suggestions folder after sleep or a locked session.
+  powerMonitor.on('resume', () => {
+    void activeScheduler.check()
+    void activeImporter.check()
+  })
+  powerMonitor.on('unlock-screen', () => {
+    void activeScheduler.check()
+    void activeImporter.check()
+  })
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -380,6 +430,7 @@ if (!app.requestSingleInstanceLock()) {
     // Let pending writes finish before the process exits.
     event.preventDefault()
     scheduler?.stop()
+    importer?.stop()
     void store.flush().finally(() => {
       readyToExit = true
       app.quit()

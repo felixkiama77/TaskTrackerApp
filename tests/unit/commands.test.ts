@@ -16,7 +16,7 @@ describe('creating tasks (FR-1 – FR-5)', () => {
       type: 'task/create',
       input: makeInput({
         title: '  Read chapter 4  ',
-        difficulty: 'hard',
+        priority: 'high',
         dueDate: '2026-10-12',
         dueTime: '19:30',
         recurrence: { kind: 'weekly', weekdays: [4, 1] },
@@ -27,7 +27,7 @@ describe('creating tasks (FR-1 – FR-5)', () => {
     })
     expect(next.tasks[0]).toMatchObject({
       title: 'Read chapter 4',
-      difficulty: 'hard',
+      priority: 'high',
       startDate: '2026-10-12',
       dueTime: '19:30',
       recurrence: { kind: 'weekly', weekdays: [1, 4] },

@@ -115,3 +115,84 @@ describe('Store persistence (FR-33, FR-34, FR-38)', () => {
     expect((await readJson(`${DATA_FILE}.bak`)).tasks.map((t) => t.id)).toEqual(['latest'])
   })
 })
+
+describe('Upgrading a version 1 data file (Difficulty → Priority)', () => {
+  const v1Task = (id: string, difficulty: string) => {
+    const { priority: _priority, notes: _notes, link: _link, source: _source, ...rest } = makeTask({ id })
+    return { ...rest, difficulty }
+  }
+  const v1File = () => ({
+    version: 1,
+    tasks: [v1Task('e', 'easy'), v1Task('m', 'medium'), v1Task('h', 'hard')],
+    categories: [],
+    archive: [
+      {
+        id: 'r1',
+        taskId: 'h',
+        occurrenceKey: '2026-10-01',
+        title: 'Done',
+        difficulty: 'hard',
+        categoryIds: [],
+        categoryNames: [],
+        dueDate: '2026-10-01',
+        dueTime: null,
+        recurrence: { kind: 'once' },
+        end: { kind: 'never' },
+        occurrenceNumber: 1,
+        reminders: [],
+        completedAt: '2026-10-01T12:00:00.000Z',
+        classification: 'on-time',
+      },
+    ],
+    settings: { dateOnlyReminderTime: '13:00' },
+  })
+
+  it('maps Easy/Medium/Hard to Low/Medium/High and adds the new task fields', async () => {
+    await fs.writeFile(file(), JSON.stringify(v1File()), 'utf8')
+    const { store, issues } = await Store.open(dir)
+    expect(issues).toEqual([])
+    const data = store.get()
+    expect(data.version).toBe(2)
+    expect(data.tasks.map((t) => [t.id, t.priority])).toEqual([
+      ['e', 'low'],
+      ['m', 'medium'],
+      ['h', 'high'],
+    ])
+    expect(data.tasks[0]).toMatchObject({ notes: '', link: null, source: null })
+    expect(data.tasks[0]).not.toHaveProperty('difficulty')
+    expect(data.archive[0].priority).toBe('high')
+    expect(data.settings.dateOnlyReminderTime).toBe('13:00')
+    expect(data.imports).toEqual({ folder: null, seen: {}, files: {}, reports: [] })
+    // The upgraded file is written straight away.
+    expect((await readJson()).version).toBe(2)
+  })
+
+  it('keeps the original file untouched, once, before upgrading', async () => {
+    const original = JSON.stringify(v1File())
+    await fs.writeFile(file(), original, 'utf8')
+    await Store.open(dir)
+    const copy = path.join(dir, 'task-tracker-data.v1-before-upgrade.json')
+    expect(await fs.readFile(copy, 'utf8')).toBe(original)
+
+    // A later upgrade of another v1 file (e.g. restored by hand) never overwrites the first copy.
+    await fs.writeFile(file(), JSON.stringify({ ...v1File(), tasks: [] }), 'utf8')
+    await Store.open(dir)
+    expect(await fs.readFile(copy, 'utf8')).toBe(original)
+  })
+
+  it('still sets aside a file from a newer version instead of guessing', async () => {
+    await fs.writeFile(file(), JSON.stringify({ ...v1File(), version: 3 }), 'utf8')
+    const { store, issues } = await Store.open(dir)
+    expect(issues.map((i) => i.kind)).toEqual(['reset'])
+    expect(store.get().tasks).toEqual([])
+  })
+
+  it('quarantines a v1 task whose difficulty was invalid rather than inventing a priority', async () => {
+    const doc = v1File()
+    doc.tasks.push(v1Task('bad', 'extreme'))
+    await fs.writeFile(file(), JSON.stringify(doc), 'utf8')
+    const { store, issues } = await Store.open(dir)
+    expect(store.get().tasks.map((t) => t.id)).toEqual(['e', 'm', 'h'])
+    expect(issues.map((i) => i.kind)).toEqual(['quarantined'])
+  })
+})

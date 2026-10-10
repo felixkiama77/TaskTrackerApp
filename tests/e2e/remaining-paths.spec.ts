@@ -67,7 +67,7 @@ test('a task due today turns overdue on screen when its time passes, without any
       type: 'task/create',
       input: {
         title: 'Team call',
-        difficulty: 'medium',
+        priority: 'medium',
         dueDate: '2026-10-08',
         dueTime: '10:00',
         recurrence: { kind: 'once' },

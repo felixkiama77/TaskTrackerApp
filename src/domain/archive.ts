@@ -36,7 +36,7 @@ export function createArchiveRecord(
     taskId: task.id,
     occurrenceKey: occ.key,
     title: task.title,
-    difficulty: task.difficulty,
+    priority: task.priority,
     categoryIds,
     categoryNames: categoryIds.map((cid) => names.get(cid) ?? ''),
     dueDate: occ.date,

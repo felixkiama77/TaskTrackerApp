@@ -24,7 +24,7 @@ describe('archive snapshot (FR-19)', () => {
   it('captures the original details, category names and occurrence position', () => {
     const task = makeTask({
       title: 'Gym',
-      difficulty: 'hard',
+      priority: 'high',
       startDate: '2026-10-05',
       dueTime: '18:00',
       recurrence: { kind: 'weekly', weekdays: [1, 4] },
@@ -44,7 +44,7 @@ describe('archive snapshot (FR-19)', () => {
       taskId: task.id,
       occurrenceKey: '2026-10-08',
       title: 'Gym',
-      difficulty: 'hard',
+      priority: 'high',
       categoryIds: ['health'],
       categoryNames: ['Health'],
       dueDate: '2026-10-08',

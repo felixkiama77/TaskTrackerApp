@@ -1,12 +1,24 @@
 import { localeWeekStart } from '../../domain/dates'
-import type { Settings } from '../../domain/types'
+import { formatTimestamp } from '../../domain/format'
+import type { ImportReport, Settings } from '../../domain/types'
 import type { AppInfo } from '../../shared/api'
 import type { Actions } from '../actions'
 import { EFFECT_LABELS, NOTIFICATION_LABELS, type SoundSlot, type UserSound } from '../../domain/sounds'
 import { EFFECT_CUES, NOTIFICATION_CUES, type Track } from '../audio/catalog'
 import { brandMark } from '../components/parts'
 import { h, icon, mount, type Child } from '../dom'
-import { BellRing, FolderOpen, Music, Play, SkipForward, Trash, Upload } from '../icons'
+import {
+  BellRing,
+  CircleAlert,
+  FolderOpen,
+  Music,
+  Play,
+  RefreshCw,
+  SkipForward,
+  Trash,
+  Upload,
+  X,
+} from '../icons'
 import { state } from '../state'
 import type { ViewContent } from './shell'
 
@@ -374,6 +386,114 @@ function soundSection(actions: Actions): HTMLElement {
   )
 }
 
+function reportSummary(report: ImportReport): string {
+  if (report.error) return report.error
+  const parts = [`${report.created} added`, `${report.updated} updated`, `${report.unchanged} unchanged`]
+  return parts.join(' · ')
+}
+
+function importReportItem(report: ImportReport): HTMLLIElement {
+  return h(
+    'li',
+    { class: ['import-report', report.error !== null && 'import-report--error'] },
+    h(
+      'div',
+      { class: 'import-report__head' },
+      h('strong', null, report.origin || report.file),
+      h('span', { class: 'setting__hint' }, formatTimestamp(report.at)),
+    ),
+    h('p', { class: 'import-report__summary' }, reportSummary(report)),
+    report.notes.length > 0 &&
+      h(
+        'ul',
+        { class: 'import-report__notes' },
+        report.notes.map((note) => h('li', null, note)),
+      ),
+  )
+}
+
+/** Where suggested tasks come from (see docs/DECISIONS.md, "School automation"). */
+function importSection(actions: Actions): HTMLElement {
+  const status = state.importStatus
+  const folder = status?.folder ?? state.data.imports.folder
+  const reports = state.data.imports.reports.slice(0, 5)
+  return h(
+    'section',
+    { class: 'settings-section', 'aria-labelledby': 'settings-imports' },
+    h('h2', { id: 'settings-imports' }, 'Suggested tasks'),
+    h(
+      'p',
+      { class: 'setting__hint' },
+      'Task Tracker can add tasks that your Claude Code routines suggest, such as upcoming assignments. Choose the folder the routines write to, for example a Google Drive folder synced to this computer. Your own edits are never overwritten, and nothing is ever deleted.',
+    ),
+    setting('Suggestions folder', folder ? null : 'Not set. Nothing is imported until you choose a folder.', [
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'btn btn--sm',
+          dataset: { focusKey: 'choose-import-folder' },
+          onClick: () => void actions.chooseImportFolder(),
+        },
+        icon(FolderOpen, 14),
+        folder ? 'Change folder' : 'Choose folder',
+      ),
+      folder &&
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'btn btn--sm',
+            dataset: { focusKey: 'check-imports' },
+            onClick: () => void actions.checkImportsNow(),
+          },
+          icon(RefreshCw, 14),
+          'Check now',
+        ),
+      folder &&
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'btn btn--sm',
+            dataset: { focusKey: 'clear-import-folder' },
+            onClick: () => void actions.clearImportFolder(),
+          },
+          icon(X, 14),
+          'Stop using it',
+        ),
+    ]),
+    folder && h('p', { class: 'data-path' }, folder),
+    status?.folderError &&
+      h(
+        'p',
+        { class: 'form-error', role: 'status' },
+        icon(CircleAlert, 16),
+        h('span', null, status.folderError),
+      ),
+    folder &&
+      !status?.folderError &&
+      h(
+        'p',
+        { class: 'setting__hint', role: 'status' },
+        status?.lastCheckedAt
+          ? `Checked ${formatTimestamp(status.lastCheckedAt)}. Checked again every 5 minutes while Task Tracker is running.`
+          : 'Checked every 5 minutes while Task Tracker is running.',
+      ),
+    reports.length > 0 &&
+      h(
+        'div',
+        null,
+        h('h3', { class: 'settings-subheading', id: 'imports-recent' }, 'Recent imports'),
+        h(
+          'ul',
+          { class: 'import-reports', 'aria-labelledby': 'imports-recent' },
+          reports.map(importReportItem),
+        ),
+      ),
+  )
+}
+
 export function settingsView(actions: Actions, info: AppInfo | null): ViewContent {
   const settings = state.data.settings
   const testResult = h('span', { class: 'setting__hint', role: 'status' })
@@ -581,6 +701,14 @@ export function settingsView(actions: Actions, info: AppInfo | null): ViewConten
   return {
     title: 'Settings',
     summary: 'Changes are saved automatically.',
-    body: [notifications, soundSection(actions), calendar, windowSection, data, about],
+    body: [
+      notifications,
+      soundSection(actions),
+      calendar,
+      windowSection,
+      importSection(actions),
+      data,
+      about,
+    ],
   }
 }

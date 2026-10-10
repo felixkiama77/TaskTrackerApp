@@ -10,7 +10,9 @@ export function makeTask(overrides: Partial<TaskDefinition> = {}): TaskDefinitio
   return {
     id: 'task-1',
     title: 'Water plants',
-    difficulty: 'medium',
+    priority: 'medium',
+    notes: '',
+    link: null,
     categoryIds: [],
     startDate: '2026-10-08',
     dueTime: null,
@@ -20,6 +22,7 @@ export function makeTask(overrides: Partial<TaskDefinition> = {}): TaskDefinitio
     reminders: [],
     completed: {},
     exceptions: {},
+    source: null,
     createdAt: '2026-10-01T12:00:00.000Z',
     updatedAt: '2026-10-01T12:00:00.000Z',
     ...overrides,
@@ -29,7 +32,9 @@ export function makeTask(overrides: Partial<TaskDefinition> = {}): TaskDefinitio
 export function makeInput(overrides: Partial<TaskInput> = {}): TaskInput {
   return {
     title: 'Submit assignment',
-    difficulty: 'medium',
+    priority: 'medium',
+    notes: '',
+    link: null,
     dueDate: '2026-10-08',
     dueTime: null,
     recurrence: { kind: 'once' },

@@ -1,11 +1,11 @@
 import { addDays, localDateOf, startOfWeek, type Weekday } from './dates'
 import { activeOccurrencesBetween, nextOccurrence, overdueOccurrences, type Occurrence } from './occurrences'
-import { DIFFICULTY_ORDER, type TaskDefinition } from './types'
+import { PRIORITY_ORDER, type TaskDefinition } from './types'
 
 /** Task-list views (FR-14). "completed" is served from the archive, not from occurrences. */
 export type ListView = 'all' | 'today' | 'next3' | 'week' | 'overdue'
 
-export type SortKey = 'due' | 'difficulty'
+export type SortKey = 'due' | 'priority'
 export type SortDirection = 'asc' | 'desc'
 export interface SortOrder {
   key: SortKey
@@ -88,7 +88,7 @@ function compareDue(a: Occurrence, b: Occurrence): number {
 
 /**
  * Sorts occurrences (FR-11, FR-12). By due date, date-only occurrences sort after timed ones on the
- * same day because they are due at the end of it. Difficulty ascending is Easy → Hard; ties are
+ * same day because they are due at the end of it. Priority ascending is Low → High; ties are
  * ordered by due date.
  */
 export function sortOccurrences(occurrences: Occurrence[], order: SortOrder): Occurrence[] {
@@ -99,8 +99,7 @@ export function sortOccurrences(occurrences: Occurrence[], order: SortOrder): Oc
   } else {
     copy.sort(
       (a, b) =>
-        sign * (DIFFICULTY_ORDER[a.task.difficulty] - DIFFICULTY_ORDER[b.task.difficulty]) ||
-        compareDue(a, b),
+        sign * (PRIORITY_ORDER[a.task.priority] - PRIORITY_ORDER[b.task.priority]) || compareDue(a, b),
     )
   }
   return copy

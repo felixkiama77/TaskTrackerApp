@@ -1,7 +1,7 @@
 import type { LocalDate, LocalTime, Weekday } from './dates'
 import { emptyUserSounds, type UserSounds } from './sounds'
 
-export type Difficulty = 'easy' | 'medium' | 'hard'
+export type Priority = 'low' | 'medium' | 'high'
 
 /** How often a task repeats. Weekly covers both "weekly" and "multiple times per week". */
 export type Recurrence =
@@ -30,7 +30,11 @@ export interface Category {
 export interface TaskDefinition {
   id: string
   title: string
-  difficulty: Difficulty
+  priority: Priority
+  /** Optional free text, e.g. a short summary of the assignment or email a task came from. */
+  notes: string
+  /** Optional https link, e.g. to the assignment or message. */
+  link: string | null
   categoryIds: string[]
   /** Due date of the first occurrence. */
   startDate: LocalDate
@@ -48,8 +52,37 @@ export interface TaskDefinition {
    */
   completed: Record<LocalDate, string>
   exceptions: Record<LocalDate, OccurrenceException>
+  /** Set when the task was added from a suggestions file; `null` for tasks created in the app. */
+  source: TaskSource | null
   createdAt: string
   updatedAt: string
+}
+
+/** The fields a suggestions file can set, as they were last imported. */
+export interface ImportedValues {
+  title: string
+  notes: string
+  link: string | null
+  dueDate: LocalDate
+  dueTime: LocalTime | null
+  priority: Priority
+  categoryIds: string[]
+  reminders: number[]
+}
+
+/**
+ * Where an imported task came from. `imported` holds the values from the last import, so a later
+ * import can tell a change at the source apart from an edit made in the app (which is never overwritten).
+ */
+export interface TaskSource {
+  /** The system that suggested the task, e.g. "canvas" or "outlook". */
+  system: string
+  /** Stable id of the item in that system, e.g. "course-123/assignment-456". */
+  externalId: string
+  /** Name of the routine or file that suggested it, for display. */
+  origin: string
+  importedAt: string
+  imported: ImportedValues
 }
 
 export type CompletionClassification = 'early' | 'on-time' | 'overdue' | 'unknown'
@@ -60,7 +93,7 @@ export interface ArchiveRecord {
   taskId: string
   occurrenceKey: LocalDate
   title: string
-  difficulty: Difficulty
+  priority: Priority
   categoryIds: string[]
   /** Category names at completion time; kept even if the category is later renamed or deleted. */
   categoryNames: string[]
@@ -102,8 +135,36 @@ export interface Settings {
   showCompletedInCalendar: boolean
 }
 
+/** Result of reading one suggestions file, kept so Settings can show what happened. */
+export interface ImportReport {
+  file: string
+  origin: string
+  at: string
+  /** Set when the file couldn't be read at all; nothing was changed. */
+  error: string | null
+  created: number
+  updated: number
+  unchanged: number
+  /** Things worth a look: edits of yours that were kept, items skipped and why. */
+  notes: string[]
+}
+
+export interface ImportState {
+  /** Folder that suggestions files are read from; chosen in Settings. */
+  folder: string | null
+  /**
+   * Every source item ever imported ("system:externalId" → first import time), so a task you deleted
+   * is never added again.
+   */
+  seen: Record<string, string>
+  /** File name → content hash already processed, so an unchanged file is not read again. */
+  files: Record<string, string>
+  /** Most recent reports first. */
+  reports: ImportReport[]
+}
+
 export interface AppData {
-  version: 1
+  version: 2
   tasks: TaskDefinition[]
   categories: Category[]
   archive: ArchiveRecord[]
@@ -117,6 +178,8 @@ export interface AppData {
     /** Upper bound (epoch ms) of the last scheduler check. */
     lastCheckedAt: number | null
   }
+  /** Suggested-task imports (see docs/DECISIONS.md, "School automation"). */
+  imports: ImportState
   meta: {
     legacyImportedAt: string | null
   }
@@ -138,29 +201,36 @@ export const DEFAULT_SETTINGS: Settings = {
   showCompletedInCalendar: true,
 }
 
+export function emptyImportState(): ImportState {
+  return { folder: null, seen: {}, files: {}, reports: [] }
+}
+
 export function emptyAppData(): AppData {
   return {
-    version: 1,
+    version: 2,
     tasks: [],
     categories: [],
     archive: [],
     settings: { ...DEFAULT_SETTINGS },
     sounds: emptyUserSounds(),
     alerts: { delivered: {}, lastCheckedAt: null },
+    imports: emptyImportState(),
     meta: { legacyImportedAt: null },
   }
 }
 
-export const DIFFICULTY_ORDER: Record<Difficulty, number> = { easy: 0, medium: 1, hard: 2 }
+export const PRIORITY_ORDER: Record<Priority, number> = { low: 0, medium: 1, high: 2 }
 
-export const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }
+export const PRIORITY_LABEL: Record<Priority, string> = { low: 'Low', medium: 'Medium', high: 'High' }
 
 /** Reminder presets offered in the editor, in minutes before the due time. */
-export const REMINDER_PRESETS = [0, 5, 15, 30, 60, 120, 1440, 2880] as const
+export const REMINDER_PRESETS = [0, 5, 15, 30, 60, 120, 360, 720, 1440, 2880] as const
 
 /** Upper limits that keep the app responsive and the data file reasonable. */
 export const MAX_TASKS = 2000
 export const MAX_CATEGORIES = 200
+
+export const MAX_NOTES_LENGTH = 1000
 
 /** Archive records are removed this long after completion (FR-20). */
 export const ARCHIVE_RETENTION_MS = 90 * 86_400_000

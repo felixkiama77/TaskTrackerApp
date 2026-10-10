@@ -2,13 +2,15 @@ import { ipcMain, type IpcMainInvokeEvent, type WebFrameMain } from 'electron'
 import { z } from 'zod'
 import { applyCommand, CommandError } from '../src/domain/commands'
 import { importLegacyData, type LegacyImportReport } from '../src/domain/legacy'
-import { CommandSchema, IdSchema, SoundSlotSchema, type Command } from '../src/domain/schemas'
+import { CommandSchema, IdSchema, isHttpsUrl, SoundSlotSchema, type Command } from '../src/domain/schemas'
 import { assignSound, folderFor, MAX_TRACKS, removeSound, type SoundSlot } from '../src/domain/sounds'
-import type { AppData } from '../src/domain/types'
+import type { AppData, ImportReport } from '../src/domain/types'
 import {
   Channels,
   type AppInfo,
   type AudioReport,
+  type ImportCheckedMessage,
+  type ImportStatus,
   type SoundImportResult,
   type DispatchResult,
   type Snapshot,
@@ -37,6 +39,11 @@ export interface IpcDeps {
   sounds: SoundLibrary
   /** Shows the system file picker; returns chosen paths (empty when cancelled). */
   pickSoundFiles(multiple: boolean): Promise<string[]>
+  importer: { status(): ImportStatus; check(): Promise<ImportReport[]> }
+  /** Shows the system folder picker; returns the chosen folder or `null` when cancelled. */
+  pickFolder(): Promise<string | null>
+  /** Opens an https URL in the default browser. */
+  openExternal(url: string): Promise<void>
 }
 
 const AudioReportSchema = z.object({
@@ -45,6 +52,8 @@ const AudioReportSchema = z.object({
 
 const ChooseSoundSchema = z.object({ slot: SoundSlotSchema })
 const RemoveSoundSchema = z.object({ slot: SoundSlotSchema, trackId: IdSchema.optional() })
+
+const OpenTaskLinkSchema = z.object({ taskId: IdSchema })
 
 const LegacyRawSchema = z.object({
   tasks: z.string().max(5_000_000).nullable(),
@@ -179,6 +188,49 @@ export function registerIpc(deps: IpcDeps) {
     deps.onChanged(previous, next, null)
     return { cancelled: false, added: imported.length, errors }
   }
+
+  handle(Channels.getImportStatus, () => deps.importer.status())
+
+  /** Saves a new folder (or none). Processed-file records are reset so the new folder is read in full. */
+  async function setImportFolder(folder: string | null) {
+    const previous = deps.store.get()
+    const next = { ...previous, imports: { ...previous.imports, folder, files: {} } }
+    await deps.store.replace(next)
+    deps.onChanged(previous, next, null)
+    await deps.importer.check()
+  }
+
+  let choosingFolder = false
+  handle(Channels.chooseImportFolder, async () => {
+    if (choosingFolder) return { cancelled: true, status: deps.importer.status() }
+    choosingFolder = true
+    try {
+      const folder = await deps.pickFolder()
+      if (!folder) return { cancelled: true, status: deps.importer.status() }
+      await setImportFolder(folder)
+      return { cancelled: false, status: deps.importer.status() }
+    } finally {
+      choosingFolder = false
+    }
+  })
+
+  handle(Channels.clearImportFolder, async () => {
+    await setImportFolder(null)
+    return deps.importer.status()
+  })
+
+  handle(Channels.checkImportsNow, async (): Promise<ImportCheckedMessage> => {
+    const reports = await deps.importer.check()
+    return { status: deps.importer.status(), reports }
+  })
+
+  handle(Channels.openTaskLink, async (_event, payload) => {
+    const { taskId } = OpenTaskLinkSchema.parse(payload)
+    const link = deps.store.get().tasks.find((t) => t.id === taskId)?.link
+    if (!link || !isHttpsUrl(link)) return false
+    await deps.openExternal(link)
+    return true
+  })
 
   handle(Channels.removeSound, async (_event, payload): Promise<DispatchResult> => {
     const { slot, trackId } = RemoveSoundSchema.parse(payload)

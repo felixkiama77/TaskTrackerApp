@@ -37,7 +37,7 @@ test('tasks saved by the old version are imported once, from a copy of a real pr
     console.log(
       'Imported tasks:',
       imported.data.tasks.map(
-        (t) => `${t.title} | ${t.startDate} ${t.dueTime ?? '(no time)'} | ${t.difficulty}`,
+        (t) => `${t.title} | ${t.startDate} ${t.dueTime ?? '(no time)'} | ${t.priority}`,
       ),
     )
     console.log(

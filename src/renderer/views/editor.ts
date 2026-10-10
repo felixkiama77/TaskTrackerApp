@@ -2,7 +2,13 @@ import { dateParts, localDateOf, weekdayOf, type LocalDate, type Weekday } from 
 import { describeRecurrence, describeReminder, formatLongDate, formatTime } from '../../domain/format'
 import type { Occurrence } from '../../domain/occurrences'
 import { fieldErrors, TaskInputSchema, type TaskInput, type UpdateScope } from '../../domain/schemas'
-import { DIFFICULTY_LABEL, REMINDER_PRESETS, type Difficulty, type Recurrence } from '../../domain/types'
+import {
+  MAX_NOTES_LENGTH,
+  PRIORITY_LABEL,
+  REMINDER_PRESETS,
+  type Priority,
+  type Recurrence,
+} from '../../domain/types'
 import { chooseDialog, openDialog } from '../components/dialog'
 import { h, icon, mount, uid } from '../dom'
 import { Check, CircleAlert, Plus, Repeat, Trash } from '../icons'
@@ -15,19 +21,21 @@ interface FormState {
   title: string
   dueDate: string
   dueTime: string
-  difficulty: Difficulty
+  priority: Priority
   repeat: RepeatKind
   weekdays: Set<Weekday>
   endKind: 'never' | 'count'
   count: string
   categoryIds: Set<string>
   reminders: Set<number>
+  notes: string
+  link: string
 }
 
 export type EditorTarget = { mode: 'create' } | { mode: 'edit'; occ: Occurrence }
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard']
+const PRIORITIES: Priority[] = ['low', 'medium', 'high']
 
 function initialState(target: EditorTarget, today: LocalDate): FormState {
   if (target.mode === 'create') {
@@ -35,13 +43,15 @@ function initialState(target: EditorTarget, today: LocalDate): FormState {
       title: '',
       dueDate: today,
       dueTime: '',
-      difficulty: 'medium',
+      priority: 'medium',
       repeat: 'once',
       weekdays: new Set([weekdayOf(today)]),
       endKind: 'never',
       count: '10',
       categoryIds: new Set(),
       reminders: new Set(),
+      notes: '',
+      link: '',
     }
   }
   const { task, date } = target.occ
@@ -49,13 +59,15 @@ function initialState(target: EditorTarget, today: LocalDate): FormState {
     title: task.title,
     dueDate: date,
     dueTime: task.dueTime ?? '',
-    difficulty: task.difficulty,
+    priority: task.priority,
     repeat: task.recurrence.kind,
     weekdays: new Set(task.recurrence.kind === 'weekly' ? task.recurrence.weekdays : [weekdayOf(date)]),
     endKind: task.end.kind,
     count: task.end.kind === 'count' ? String(task.end.count) : '10',
     categoryIds: new Set(task.categoryIds),
     reminders: new Set(task.reminders),
+    notes: task.notes,
+    link: task.link ?? '',
   }
 }
 
@@ -86,7 +98,9 @@ function toInput(form: FormState, target: EditorTarget): TaskInput {
   }
   return {
     title: form.title,
-    difficulty: form.difficulty,
+    priority: form.priority,
+    notes: form.notes,
+    link: form.link.trim() === '' ? null : form.link.trim(),
     dueDate: form.dueDate,
     dueTime: form.dueTime === '' ? null : form.dueTime,
     recurrence,
@@ -178,27 +192,27 @@ export function openTaskEditor(target: EditorTarget, actions: Actions): void {
   }
   renderDueHint()
 
-  // --- Difficulty
-  const difficultyName = uid('difficulty')
-  const difficulty = h(
+  // --- Priority
+  const priorityName = uid('priority')
+  const priority = h(
     'fieldset',
     { class: 'fieldset' },
-    h('legend', null, 'Difficulty'),
+    h('legend', null, 'Priority'),
     h(
       'div',
       { class: 'segmented' },
-      DIFFICULTIES.map((d) =>
+      PRIORITIES.map((p) =>
         h(
           'label',
           { class: 'segmented__option' },
           h('input', {
             type: 'radio',
-            name: difficultyName,
-            value: d,
-            checked: form.difficulty === d,
-            onChange: () => (form.difficulty = d),
+            name: priorityName,
+            value: p,
+            checked: form.priority === p,
+            onChange: () => (form.priority = p),
           }),
-          h('span', null, DIFFICULTY_LABEL[d]),
+          h('span', null, PRIORITY_LABEL[p]),
         ),
       ),
     ),
@@ -496,6 +510,44 @@ export function openTaskEditor(target: EditorTarget, actions: Actions): void {
   }
   const reminderHint = h('p', { class: 'field__hint' })
 
+  // --- Notes and link
+  const notesError = fieldError('notes')
+  const notesInput = h('textarea', {
+    class: 'input input--multiline',
+    id: uid('notes'),
+    rows: 3,
+    maxlength: MAX_NOTES_LENGTH,
+    'aria-describedby': notesError.id,
+    onInput: (e: Event) => (form.notes = (e.target as HTMLTextAreaElement).value),
+  })
+  notesInput.value = form.notes
+  const linkError = fieldError('link')
+  const linkInput = h('input', {
+    class: 'input',
+    type: 'url',
+    id: uid('link'),
+    value: form.link,
+    maxlength: 2000,
+    placeholder: 'https://',
+    autocomplete: 'off',
+    spellcheck: 'false',
+    'aria-describedby': linkError.id,
+    onInput: (e: Event) => (form.link = (e.target as HTMLInputElement).value),
+  })
+  const optionalField = (label: string, control: HTMLElement, error: HTMLElement) =>
+    h(
+      'div',
+      { class: 'field' },
+      h(
+        'label',
+        { class: 'field__label', for: control.id },
+        `${label} `,
+        h('span', { class: 'field__optional' }, '(optional)'),
+      ),
+      control,
+      error,
+    )
+
   // --- Assemble
   const field = (label: string, control: HTMLElement, ...extra: (HTMLElement | false)[]) =>
     h(
@@ -535,11 +587,13 @@ export function openTaskEditor(target: EditorTarget, actions: Actions): void {
       ),
     ),
     dueHint,
-    difficulty,
+    priority,
     field('Repeat', repeatSelect),
     repeatDetails,
     categoriesBox,
     remindersBox,
+    optionalField('Notes', notesInput, notesError),
+    optionalField('Link', linkInput, linkError),
   )
 
   renderRepeat()
@@ -557,6 +611,8 @@ export function openTaskEditor(target: EditorTarget, actions: Actions): void {
       ['dueDate', dateInput],
       ['dueTime', timeInput],
       ['end.count', countInput],
+      ['notes', notesInput],
+      ['link', linkInput],
     ]
     for (const [key, control] of invalidControls)
       control.setAttribute('aria-invalid', String(Boolean(messages[key])))

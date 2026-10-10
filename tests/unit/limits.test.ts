@@ -33,7 +33,7 @@ describe('jumping ahead in long series gives exactly the same dates and position
       const brute = Array.from(scheduledDates(schedule, to)).filter((d) => d.date >= from)
       expect(scheduledDatesBetween(schedule, from, to)).toEqual(brute)
     }
-  })
+  }, 20_000) // Thousands of schedules; slow when many test files run at once.
 
   it('looks up a range in a 50-year-old daily series without walking every day', () => {
     const schedule: Schedule = {

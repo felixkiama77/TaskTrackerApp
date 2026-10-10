@@ -1,7 +1,7 @@
 import type { LegacyImportReport, LegacyRaw } from '../domain/legacy'
-import type { Command } from '../domain/schemas'
+import type { CommandInput } from '../domain/schemas'
 import type { SoundSlot } from '../domain/sounds'
-import type { AppData } from '../domain/types'
+import type { AppData, ImportReport } from '../domain/types'
 
 /**
  * The contract between the renderer and the main process. The preload script exposes exactly this
@@ -61,9 +61,24 @@ export interface AudioReport {
   customNotificationSounds: ('reminder' | 'due' | 'overdue' | 'missed')[]
 }
 
+/** State of the suggested-task folder. Kept in memory by the main process, not in the data file. */
+export interface ImportStatus {
+  folder: string | null
+  /** When the folder was last checked in this session (ISO), or `null` if not yet. */
+  lastCheckedAt: string | null
+  /** Why the folder couldn't be read at the last check; `null` if it could. */
+  folderError: string | null
+}
+
+/** Sent after every folder check; `reports` covers only files that changed. */
+export interface ImportCheckedMessage {
+  status: ImportStatus
+  reports: ImportReport[]
+}
+
 export interface TaskTrackerApi {
   getSnapshot(): Promise<Snapshot>
-  dispatch(command: Command): Promise<DispatchResult>
+  dispatch(command: CommandInput): Promise<DispatchResult>
   importLegacy(raw: LegacyRaw): Promise<LegacyImportReport>
   testNotification(): Promise<TestNotificationResult>
   getAppInfo(): Promise<AppInfo>
@@ -72,6 +87,14 @@ export interface TaskTrackerApi {
   /** Opens the system file picker (several files for music) and adds the chosen sounds. */
   chooseSound(slot: SoundSlot): Promise<SoundImportResult>
   removeSound(slot: SoundSlot, trackId?: string): Promise<DispatchResult>
+  getImportStatus(): Promise<ImportStatus>
+  /** Opens the system folder picker; the chosen folder is checked straight away. */
+  chooseImportFolder(): Promise<{ cancelled: boolean; status: ImportStatus }>
+  clearImportFolder(): Promise<ImportStatus>
+  checkImportsNow(): Promise<ImportCheckedMessage>
+  /** Opens a task's link in the default browser. Only https links stored on the task are opened. */
+  openTaskLink(taskId: string): Promise<boolean>
+  onImportChecked(listener: (message: ImportCheckedMessage) => void): () => void
   onSnapshot(listener: (snapshot: Snapshot) => void): () => void
   onAlert(listener: (alert: AlertMessage) => void): () => void
   onNavigate(listener: (target: NavigateMessage) => void): () => void
@@ -90,6 +113,12 @@ export const Channels = {
   reportAudio: 'tt:report-audio',
   chooseSound: 'tt:choose-sound',
   removeSound: 'tt:remove-sound',
+  getImportStatus: 'tt:get-import-status',
+  chooseImportFolder: 'tt:choose-import-folder',
+  clearImportFolder: 'tt:clear-import-folder',
+  checkImportsNow: 'tt:check-imports-now',
+  openTaskLink: 'tt:open-task-link',
+  importChecked: 'tt:import-checked',
   snapshot: 'tt:snapshot',
   alert: 'tt:alert',
   navigate: 'tt:navigate',

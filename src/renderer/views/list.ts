@@ -40,14 +40,14 @@ const SORT_OPTIONS: { value: string; label: string; order: SortOrder }[] = [
   { value: 'due-asc', label: 'Due date (soonest first)', order: { key: 'due', direction: 'asc' } },
   { value: 'due-desc', label: 'Due date (latest first)', order: { key: 'due', direction: 'desc' } },
   {
-    value: 'difficulty-desc',
-    label: 'Difficulty (hardest first)',
-    order: { key: 'difficulty', direction: 'desc' },
+    value: 'priority-desc',
+    label: 'Priority (highest first)',
+    order: { key: 'priority', direction: 'desc' },
   },
   {
-    value: 'difficulty-asc',
-    label: 'Difficulty (easiest first)',
-    order: { key: 'difficulty', direction: 'asc' },
+    value: 'priority-asc',
+    label: 'Priority (lowest first)',
+    order: { key: 'priority', direction: 'asc' },
   },
 ]
 

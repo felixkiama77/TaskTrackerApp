@@ -3,7 +3,7 @@ import { formatDue, formatRelativeDate, formatTime, inSentence } from '../../dom
 import { filterByCategories } from '../../domain/views'
 import type { ArchiveRecord } from '../../domain/types'
 import type { Actions } from '../actions'
-import { categoryChips, classificationBadge, difficultyChip, emptyState } from '../components/parts'
+import { categoryChips, classificationBadge, emptyState, priorityChip } from '../components/parts'
 import { h, icon, type Child } from '../dom'
 import { Archive, CircleCheck, Clock } from '../icons'
 import { state } from '../state'
@@ -49,7 +49,7 @@ function archiveRow(record: ArchiveRecord, now: number): HTMLLIElement {
         h(
           'span',
           { class: 'task-row__chips' },
-          difficultyChip(record.difficulty),
+          priorityChip(record.priority),
           categoryChips(record.categoryNames),
         ),
       ),

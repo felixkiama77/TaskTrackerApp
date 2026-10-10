@@ -246,6 +246,14 @@ export async function startApp(root: HTMLElement, api: TaskTrackerApi) {
     })
   })
   api.onNavigate(({ taskId, occurrenceKey }) => openFromNotification(taskId, occurrenceKey, actions))
+  api.onImportChecked(({ status, reports }) => {
+    state.setImportStatus(status)
+    actions.announceImports(reports, () => state.setUi({ route: { name: 'settings' } }))
+  })
+  void api
+    .getImportStatus()
+    .then((status) => state.setImportStatus(status))
+    .catch((error: unknown) => console.warn('[imports] Could not read status', error))
 
   // Time-sensitive status (today / overdue / calendar colours) follows the clock (FR-29).
   startMinuteTicker(() => state.refresh())

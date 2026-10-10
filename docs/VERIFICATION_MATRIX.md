@@ -13,7 +13,9 @@ Maps each requirement in [`docs/specs/`](specs/) to how it was verified. The req
 
 **Status:** ✅ verified · 🟨 implemented, partly verified (see note) · ❌ not done
 
-Last full run (2026-10-08): 135 unit and integration tests, 19 end-to-end tests, and 4 manual checks passed. The fifth manual check (legacy import) needs a profile copy; it was run once against a copy of the real profile and passed. `tsc`, ESLint and Prettier are clean. An automated accessibility scan (axe-core, WCAG 2.1 AA) found no serious or critical issues.
+Last full run (2026-10-09, after the additions at the end of this page): 165 unit and integration tests and 21 end-to-end tests passed; `tsc`, ESLint and Prettier are clean. The manual checks were not re-run for these changes.
+
+Previous full run (2026-10-08): 135 unit and integration tests, 19 end-to-end tests, and 4 manual checks passed. The fifth manual check (legacy import) needs a profile copy; it was run once against a copy of the real profile and passed. `tsc`, ESLint and Prettier are clean. An automated accessibility scan (axe-core, WCAG 2.1 AA) found no serious or critical issues.
 
 ## Functional requirements (`TASK_TRACKER_FUNCTIONAL_REQUIREMENTS.md`)
 
@@ -30,7 +32,7 @@ Last full run (2026-10-08): 135 unit and integration tests, 19 end-to-end tests,
 | FR-9  | Active task display                                   | E, V    | `journeys`, `editor-and-lists`; screenshots 01–05                                                                                                                                           | ✅     |
 | FR-10 | Multiple views                                        | E, V    | Every view opened in `visual-review` and `journeys`; list, calendar month and agenda                                                                                                        | ✅     |
 | FR-11 | Sort by due date                                      | U, E    | `views.test` (date-only after timed, both directions); `editor-and-lists`                                                                                                                   | ✅     |
-| FR-12 | Sort by difficulty                                    | U, E    | `views.test`; `editor-and-lists` (both directions)                                                                                                                                          | ✅     |
+| FR-12 | Sort by priority (was difficulty, see DECISIONS)      | U, E    | `views.test`; `editor-and-lists` (both directions)                                                                                                                                          | ✅     |
 | FR-13 | Filter by category                                    | U, E    | `views.test` (any-match, multiple categories, deleted category); `editor-and-lists` (filter + clear)                                                                                        | ✅     |
 | FR-14 | Today / Next 3 days / This week / Overdue / Completed | U, E, V | `views.test` (exact local-date ranges, week start); each view in `visual-review`; Completed in `journeys`                                                                                   | ✅     |
 | FR-15 | Edit task (incl. recurring scope)                     | U, E    | `commands.test` (only this; this and future at the first or a later occurrence; archive untouched); `journeys` (only this occurrence), `editor-and-lists` (this and future)                 | ✅     |
@@ -92,3 +94,19 @@ Last full run (2026-10-08): 135 unit and integration tests, 19 end-to-end tests,
 | Hardening: sub-frame navigation and redirects, tighter CSP, one file picker at a time       | ✅ Done                                                                   |
 | Hardening: serve the page from a custom `app://` scheme instead of `file://`; Trusted Types | Not done (optional; see the final report)                                 |
 | Code signing; Electron 44.7 update                                                          | Not done (needs a certificate / a waiting period for the new release)     |
+
+## Additions (2026-10-09)
+
+Product changes recorded in [`DECISIONS.md`](DECISIONS.md#school-automation-2026-10-09).
+
+| Change                                     | Methods | Evidence                                                                                                                                                                                                | Status |
+| ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Priority replaces Difficulty               | U, I, E | `views.test` (sort), `schemas.test`, `legacy.test` (Low/Normal/High map straight across); `store.test` (v1 → v2: Easy/Medium/Hard → Low/Medium/High); `journeys`, `editor-and-lists`                    | ✅     |
+| Upgrading existing data to version 2       | I, M    | `store.test` (original kept once, newer versions set aside, invalid records quarantined); a copy of the real data file upgraded with all 9 tasks, names, dates, categories and settings unchanged       | ✅     |
+| 6 and 12 hour reminders                    | U, E    | `schemas.test` (accepted, labelled); `suggested-tasks` (chosen in the editor and saved)                                                                                                                 | ✅     |
+| Notes and https link on tasks              | U, E    | `schemas.test` (https only, no user/password, 1,000-character notes); `suggested-tasks` (editor validation, details show notes and link, link opens)                                                    | ✅     |
+| Suggested-task import rules                | U       | `suggestions.test`: adds, re-import changes nothing, follows untouched fields, keeps your edits (noted once), never re-adds deleted tasks, leaves completed tasks, never deletes, invalid items skipped | ✅     |
+| Reading the suggestions folder             | I, E    | `importer.test` (only top-level `.json`, unchanged files not re-read, no write when nothing changed, missing folder reported, files over 1 MB refused, edits made meanwhile kept); `suggested-tasks`    | ✅     |
+| Opening links safely                       | E, R    | `security-and-persistence` (only a link stored on an existing task opens; arbitrary URLs and malformed requests refused)                                                                                | ✅     |
+| Google Drive sync to this PC               | —       | Not tested: Google Drive for desktop isn't installed yet. The folder check itself is tested with a local folder.                                                                                        | 🟨     |
+| Editor showed empty error and repeat boxes | V       | Elements that set their own display ignored `hidden`; fixed with a `[hidden]` rule (screenshot review before and after)                                                                                 | ✅     |

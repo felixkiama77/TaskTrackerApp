@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { isValidLocalDate, isValidLocalTime } from './dates'
 import { EFFECT_CUES, NOTIFICATION_CUES, STORED_FILE_PATTERN } from './sounds'
-import { DEFAULT_SETTINGS, REMINDER_PRESETS } from './types'
+import { DEFAULT_SETTINGS, MAX_NOTES_LENGTH, REMINDER_PRESETS } from './types'
 
 /**
  * Validation shared by the renderer (form feedback), the IPC boundary (untrusted payloads) and the
@@ -14,7 +14,27 @@ export const IdSchema = z.string().min(1).max(100)
 export const LocalDateSchema = z.string().refine(isValidLocalDate, 'Enter a valid date.')
 export const LocalTimeSchema = z.string().refine(isValidLocalTime, 'Enter a valid time.')
 export const IsoTimestampSchema = z.string().refine((s) => !Number.isNaN(Date.parse(s)), 'Invalid timestamp.')
-export const DifficultySchema = z.enum(['easy', 'medium', 'hard'], { error: 'Choose a difficulty.' })
+export const PrioritySchema = z.enum(['low', 'medium', 'high'], { error: 'Choose a priority.' })
+
+/** Optional web link. Only https is accepted, because the app opens it in the browser. */
+export const LinkSchema = z
+  .string()
+  .trim()
+  .max(2000, 'Keep the link under 2,000 characters.')
+  .refine(isHttpsUrl, 'Enter a full link starting with https://')
+
+export function isHttpsUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && url.hostname !== '' && url.username === '' && url.password === ''
+  } catch {
+    return false
+  }
+}
+
+export const NotesSchema = z
+  .string()
+  .max(MAX_NOTES_LENGTH, `Keep notes under ${MAX_NOTES_LENGTH.toLocaleString('en-US')} characters.`)
 export const WeekdaySchema = z.literal([0, 1, 2, 3, 4, 5, 6])
 
 export const RecurrenceSchema = z.discriminatedUnion('kind', [
@@ -52,7 +72,9 @@ export const ReminderLeadSchema = z
 /** What the user enters when creating or editing a task. */
 export const TaskInputSchema = z.object({
   title: z.string().trim().min(1, 'Enter a task name.').max(200, 'Keep the name under 200 characters.'),
-  difficulty: DifficultySchema,
+  priority: PrioritySchema,
+  notes: NotesSchema.default(''),
+  link: LinkSchema.nullable().default(null),
   dueDate: z.string({ error: 'Choose a due date.' }).min(1, 'Choose a due date.').pipe(LocalDateSchema),
   dueTime: LocalTimeSchema.nullable(),
   recurrence: RecurrenceSchema,
@@ -130,10 +152,31 @@ export const CategorySchema = z.object({
   createdAt: IsoTimestampSchema,
 })
 
+const ImportedValuesSchema = z.object({
+  title: z.string().max(200),
+  notes: z.string().max(MAX_NOTES_LENGTH),
+  link: z.string().max(2000).nullable(),
+  dueDate: LocalDateSchema,
+  dueTime: LocalTimeSchema.nullable(),
+  priority: PrioritySchema,
+  categoryIds: z.array(IdSchema),
+  reminders: z.array(z.number().int()),
+})
+
+export const TaskSourceSchema = z.object({
+  system: z.string().min(1).max(40),
+  externalId: z.string().min(1).max(300),
+  origin: z.string().max(100),
+  importedAt: IsoTimestampSchema,
+  imported: ImportedValuesSchema,
+})
+
 export const TaskDefinitionSchema = z.object({
   id: IdSchema,
   title: z.string().trim().min(1).max(200),
-  difficulty: DifficultySchema,
+  priority: PrioritySchema,
+  notes: NotesSchema,
+  link: LinkSchema.nullable(),
   categoryIds: z.array(IdSchema),
   startDate: LocalDateSchema,
   dueTime: LocalTimeSchema.nullable(),
@@ -143,6 +186,7 @@ export const TaskDefinitionSchema = z.object({
   reminders: z.array(ReminderLeadSchema),
   completed: z.record(LocalDateSchema, IsoTimestampSchema),
   exceptions: z.record(LocalDateSchema, z.enum(['skipped', 'detached'])),
+  source: TaskSourceSchema.nullable(),
   createdAt: IsoTimestampSchema,
   updatedAt: IsoTimestampSchema,
 })
@@ -152,7 +196,7 @@ export const ArchiveRecordSchema = z.object({
   taskId: IdSchema,
   occurrenceKey: LocalDateSchema,
   title: z.string().min(1).max(200),
-  difficulty: DifficultySchema,
+  priority: PrioritySchema,
   categoryIds: z.array(IdSchema),
   categoryNames: z.array(z.string()),
   dueDate: LocalDateSchema,
@@ -197,6 +241,8 @@ export const CommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('settings/update'), patch: SettingsPatchSchema }),
 ])
 export type Command = z.infer<typeof CommandSchema>
+/** A command as sent to the main process; optional fields (e.g. a task's notes) get their defaults there. */
+export type CommandInput = z.input<typeof CommandSchema>
 export type UpdateScope = z.infer<typeof UpdateScopeSchema>
 export type DeleteScope = z.infer<typeof DeleteScopeSchema>
 

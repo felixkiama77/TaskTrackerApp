@@ -9,15 +9,50 @@ import {
   formatTimestamp,
 } from '../../domain/format'
 import { findOccurrence, statusOf, type Occurrence } from '../../domain/occurrences'
-import { DIFFICULTY_LABEL, type ArchiveRecord } from '../../domain/types'
+import { PRIORITY_LABEL, type ArchiveRecord, type TaskDefinition } from '../../domain/types'
 import type { Actions } from '../actions'
 import { openDialog } from '../components/dialog'
 import { categoryChips, classificationBadge, statusBadge } from '../components/parts'
 import { h, icon, type Child } from '../dom'
-import { Check, Pencil, SkipForward, Trash, TriangleAlert } from '../icons'
+import { Check, ExternalLink, Pencil, SkipForward, Trash, TriangleAlert } from '../icons'
 import { state } from '../state'
 
 const row = (label: string, value: Child) => [h('dt', null, label), h('dd', null, value)]
+
+function hostOf(link: string): string {
+  try {
+    return new URL(link).hostname
+  } catch {
+    return link
+  }
+}
+
+/** Notes, link and origin of a task; only the parts that are set. */
+function extraRows(task: TaskDefinition, actions: Actions): Child[] {
+  return [
+    task.notes !== '' && row('Notes', h('span', { class: 'detail-notes' }, task.notes)),
+    task.link !== null &&
+      row(
+        'Link',
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'btn btn--sm',
+            title: task.link,
+            onClick: () => void actions.openTaskLink(task.id),
+          },
+          icon(ExternalLink, 14),
+          `Open ${hostOf(task.link)}`,
+        ),
+      ),
+    task.source !== null &&
+      row(
+        'Added by',
+        `${task.source.origin || 'Suggested tasks'} · ${formatTimestamp(task.source.importedAt)}`,
+      ),
+  ]
+}
 
 /** Details and actions for one active occurrence (opened from a list row, the calendar or a notification). */
 export function openOccurrenceDetail(occ: Occurrence, actions: Actions) {
@@ -60,7 +95,7 @@ export function openOccurrenceDetail(occ: Occurrence, actions: Actions) {
           statusBadge(status) ?? h('span', { class: 'status-badge status-badge--future' }, 'Upcoming'),
         ),
         row('Repeats', describeRecurrence(task.recurrence, task.end, state.weekStart())),
-        row('Difficulty', DIFFICULTY_LABEL[task.difficulty]),
+        row('Priority', PRIORITY_LABEL[task.priority]),
         row(
           'Categories',
           categories.length ? h('span', { class: 'task-row__chips' }, categoryChips(categories)) : 'None',
@@ -71,6 +106,7 @@ export function openOccurrenceDetail(occ: Occurrence, actions: Actions) {
             ? task.reminders.map((lead) => describeReminder(lead, hasTime)).join(', ')
             : 'None',
         ),
+        extraRows(task, actions),
       ),
     ],
     footer: [
@@ -129,7 +165,7 @@ export function openArchiveDetail(record: ArchiveRecord) {
           'Repeats',
           `${describeRecurrence(record.recurrence, record.end, state.weekStart())} · occurrence ${record.occurrenceNumber}`,
         ),
-      row('Difficulty', DIFFICULTY_LABEL[record.difficulty]),
+      row('Priority', PRIORITY_LABEL[record.priority]),
       row(
         'Categories',
         record.categoryNames.length

@@ -2,7 +2,7 @@ import { formatDue, shortRecurrence } from '../../domain/format'
 import { occurrenceId, statusOf, type Occurrence } from '../../domain/occurrences'
 import { h, icon } from '../dom'
 import { Bell, Check, Clock, Pencil, Repeat, SkipForward, Trash } from '../icons'
-import { categoryChips, difficultyChip, statusBadge } from './parts'
+import { categoryChips, priorityChip, statusBadge } from './parts'
 
 export interface RowHandlers {
   onComplete: (occ: Occurrence, row: HTMLElement, check: HTMLButtonElement) => void
@@ -20,7 +20,7 @@ export interface RowContext {
 
 /**
  * One active occurrence in a list (FR-9): the title is the strongest element; due date, status,
- * recurrence, reminders, difficulty and categories are secondary.
+ * recurrence, reminders, priority and categories are secondary.
  */
 export function taskRow(occ: Occurrence, ctx: RowContext, handlers: RowHandlers): HTMLLIElement {
   const { task } = occ
@@ -78,7 +78,7 @@ export function taskRow(occ: Occurrence, ctx: RowContext, handlers: RowHandlers)
             h('span', { class: 'visually-hidden' }, 'Reminders: '),
             String(reminderCount),
           ),
-        h('span', { class: 'task-row__chips' }, difficultyChip(task.difficulty), categoryChips(categories)),
+        h('span', { class: 'task-row__chips' }, priorityChip(task.priority), categoryChips(categories)),
       ),
     ),
     h(
