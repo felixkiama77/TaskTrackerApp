@@ -41,12 +41,12 @@ Allowed lead times in minutes: `0, 5, 15, 30, 60, 120, 360, 720, 1440, 2880`.
 
 ## Ids (never change an id once used)
 
-| Source         | `system`       | `externalId`                                                                                               |
-| -------------- | -------------- | ---------------------------------------------------------------------------------------------------------- |
-| Canvas         | `canvas`       | `course-<courseId>/assignment-<assignmentId>` (or `quiz-<id>` / `discussion-<id>`)                         |
-| TCSS 380 site  | `tcss380-site` | `2026au/week-<n>/<deliverable-slug>` from the syllabus schedule table, e.g. `2026au/week-3/lab-2`           |
-| Study group    | `study-group`  | `tcss380/<Monday of that week, YYYY-MM-DD>`                                                                |
-| Outlook        | `outlook`      | The message's own id (from the connector, or from the message's URL). If none is visible: `<received ISO time>/<sender domain>/<subject-slug>` |
+| Source        | `system`       | `externalId`                                                                                                                                   |
+| ------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Canvas        | `canvas`       | `course-<courseId>/assignment-<assignmentId>` (or `quiz-<id>` / `discussion-<id>`)                                                             |
+| TCSS 380 site | `tcss380-site` | `2026au/week-<n>/<deliverable-slug>` from the syllabus schedule table, e.g. `2026au/week-3/lab-2`                                              |
+| Study group   | `study-group`  | `tcss380/<Monday of that week, YYYY-MM-DD>`                                                                                                    |
+| Outlook       | `outlook`      | The message's own id (from the connector, or from the message's URL). If none is visible: `<received ISO time>/<sender domain>/<subject-slug>` |
 
 **One task per deliverable.** Before adding an item, check the tasks already imported in Task Tracker (`source.system`, `source.externalId`, title, due date). If the same deliverable is already there under another id, reuse that id. For TCSS 380, the course site is the source of identity (it lists every deliverable in advance); if Canvas has the same deliverable, put the Canvas link in `link` and mention the site in notes. Canvas items for TCSS 380 that the site doesn't list use Canvas ids.
 
