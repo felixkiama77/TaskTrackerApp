@@ -14,7 +14,7 @@ Two local scheduled tasks read school sources and write a **suggestions file** t
 - **Never type a password, code or anything into a sign-in or MFA prompt.** If a sign-in page appears, stop that source and report "Sign-in needed: <site>".
 - **Task Tracker's data folder is read-only.** You may read `%APPDATA%\tasktracker\task-tracker-data.json` to get category names, `settings.dateOnlyReminderTime`, and tasks already imported (tasks with a `source`). Never write anything in that folder.
 - **Write only your own suggestions file** in `G:\My Drive\Task Tracker Inbox\`, and only through `scripts/write-suggestions.mjs` (see "Building and writing the file"). In **DRY RUN** mode write nothing there at all. A scratch file in your own temporary folder is fine; never write into the repository.
-- **Chrome:** work only in new tabs you create (`tabs_context_mcp`, then `tabs_create_mcp`), never in the user's own tabs, and close your tabs at the end.
+- **Chrome:** work only in new tabs you create (`tabs_context_mcp`, then `tabs_create_mcp`), never in the user's own tabs, and close your tabs at the end. Page scripts (`javascript_tool`) are for reading only (including GET requests for data the page itself loads); never use them to click, open items, submit or change anything. Make the clicks these rules allow with the computer tool, and if one is blocked by a permission check, don't look for a way around it.
 - **Privacy:** notes are your own summary, 300 characters at most. Never copy email bodies, email addresses or phone numbers into notes or the report.
 - **A failed source is a failure, not "nothing due".** Report it plainly. Never treat a missing item as cancelled; Task Tracker never deletes, so leaving items out is harmless.
 
