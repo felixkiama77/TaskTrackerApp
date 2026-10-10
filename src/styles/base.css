@@ -86,6 +86,11 @@ button:disabled {
   display: block;
 }
 
+/* Components that set their own display (e.g. .form-error, .disclosure) must still disappear when hidden. */
+[hidden] {
+  display: none !important;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
