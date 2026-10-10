@@ -39,14 +39,20 @@ Allowed lead times in minutes: `0, 5, 15, 30, 60, 120, 360, 720, 1440, 2880`.
 - **No due time:** reminders count back from `settings.dateOnlyReminderTime` (read it). If that time is between 10:00 and 18:00, use `[1440, 0]` (the day before and the day itself); otherwise none.
 - Email "review" tasks with no real deadline get no reminders.
 
-## Ids (never change an id once used)
+## Ids and titles (never change an id once used)
 
-| Source        | `system`       | `externalId`                                                                                                                                   |
-| ------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Canvas        | `canvas`       | `course-<courseId>/assignment-<assignmentId>` (or `quiz-<id>` / `discussion-<id>`)                                                             |
-| TCSS 380 site | `tcss380-site` | `2026au/week-<n>/<deliverable-slug>` from the syllabus schedule table, e.g. `2026au/week-3/lab-2`                                              |
-| Study group   | `study-group`  | `tcss380/<Monday of that week, YYYY-MM-DD>`                                                                                                    |
-| Outlook       | `outlook`      | The message's own id (from the connector, or from the message's URL). If none is visible: `<received ISO time>/<sender domain>/<subject-slug>` |
+Every run must produce exactly the same id and title for the same item, so follow these patterns to the letter:
+
+| Source        | `system`       | `externalId`                                                                                                                                                                                                        | `title`                                                                                             |
+| ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Canvas        | `canvas`       | `course-<courseId>/assignment-<assignmentId>`: always the assignment id, even for quizzes and discussions                                                                                                           | `<course code> <assignment name exactly as Canvas shows it>`                                        |
+| TCSS 380 site | `tcss380-site` | `2026au/week-<n>/quiz-<k>` or `2026au/week-<n>/lab-<k>` (`<n>` = the table's week, `<k>` = the quiz or lab number); any other deliverable `2026au/week-<n>/<its name in lowercase-with-dashes>`                     | `TCSS 380 <name exactly as in the schedule table>`, e.g. `TCSS 380 Quiz 1`, `TCSS 380 Erlang Lab 1` |
+| Study group   | `study-group`  | `tcss380/<Monday of that week, YYYY-MM-DD>`                                                                                                                                                                         | `Plan a TCSS 380 study group`                                                                       |
+| Outlook       | `outlook`      | The conversation id (from the message's URL, `/id/<id>`, or the connector) for the first task from a conversation; `<conversation id>/<received YYYY-MM-DDTHHmm>` for a later message in it that asks something new | The next step, as described in the email task                                                       |
+
+Extra detail (a lab's subtitle, where to submit) goes in notes, not the title.
+
+**Email conversations:** messages received before the previous run's `generatedAt` were already handled by that run, so don't add another task for them; their suggestions carry over. A message received after it, in a conversation that already has a task, gets the dated id above, and only if it asks for something new.
 
 **One task per deliverable.** Before adding an item, check the tasks already imported in Task Tracker (`source.system`, `source.externalId`, title, due date). If the same deliverable is already there under another id, reuse that id. For TCSS 380, the course site is the source of identity (it lists every deliverable in advance); if Canvas has the same deliverable, put the Canvas link in `link` and mention the site in notes. Canvas items for TCSS 380 that the site doesn't list use Canvas ids.
 
